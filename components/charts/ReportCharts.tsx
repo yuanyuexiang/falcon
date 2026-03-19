@@ -6,6 +6,57 @@ import ReactECharts from "echarts-for-react";
 
 import type { LineChartData, ReportChart, ReportSection, TableChartData, TextBlockItem } from "@/types/reports";
 
+const CHART_COLORS = ["#0B3C5D", "#1D70A2", "#2AA198", "#6B7280", "#E76F51", "#3C6E71"];
+
+function formatDateLabel(value: string | number): string {
+  if (typeof value !== "string") {
+    return String(value);
+  }
+
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const [year, month] = value.split("-");
+    return `${year.slice(2)}-${month}`;
+  }
+
+  return value;
+}
+
+function formatAxisNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "-";
+  }
+
+  if (Math.abs(value) >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+
+  if (Math.abs(value) >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (Math.abs(value) >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+
+  return value.toFixed(2);
+}
+
+function formatTooltipNumber(value: number | string | null): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return value === null ? "-" : String(value ?? "-");
+  }
+
+  if (Math.abs(value) >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(3)}B`;
+  }
+
+  if (Math.abs(value) >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(3)}M`;
+  }
+
+  return value.toLocaleString("en-US", { maximumFractionDigits: 3 });
+}
+
 function asLineChartData(data: ReportChart["data"]): LineChartData {
   return data as LineChartData;
 }
@@ -19,19 +70,30 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
   const minMax = chart.config?.y_axis_range;
 
   return {
-    color: ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6"],
+    color: CHART_COLORS,
     tooltip: {
       trigger: "axis",
+      backgroundColor: "rgba(15, 23, 42, 0.86)",
+      borderWidth: 0,
+      textStyle: {
+        color: "#f8fafc",
+        fontSize: 12,
+      },
+      extraCssText: "border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,0.2);",
+      valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
     },
     legend: {
       type: "scroll",
       top: 0,
       show: showLegend,
+      textStyle: {
+        color: "#475569",
+      },
     },
     grid: {
       top: 56,
-      left: 50,
-      right: 16,
+      left: 54,
+      right: 20,
       bottom: 50,
     },
     dataZoom: [
@@ -41,6 +103,13 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       {
         type: "slider",
         height: 18,
+        borderColor: "#dbe5ef",
+        fillerColor: "rgba(11, 60, 93, 0.22)",
+        backgroundColor: "rgba(148, 163, 184, 0.12)",
+        handleStyle: {
+          color: "#0b3c5d",
+          borderColor: "#0b3c5d",
+        },
       },
     ],
     xAxis: {
@@ -48,6 +117,9 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       data: data.labels,
       axisLabel: {
         color: "#334155",
+        hideOverlap: true,
+        interval: "auto",
+        formatter: (value: string | number) => formatDateLabel(value),
       },
     },
     yAxis: {
@@ -57,6 +129,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       max: minMax?.[1],
       axisLabel: {
         color: "#334155",
+        formatter: (value: number) => formatAxisNumber(value),
       },
       splitLine: {
         lineStyle: {
@@ -74,6 +147,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       lineStyle: {
         width: item.borderWidth ?? 2,
         color: item.borderColor,
+        type: /management/i.test(item.label) ? "dashed" : "solid",
       },
       emphasis: {
         focus: "series",
@@ -92,11 +166,35 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
 
 function TableChart({ chart }: { chart: ReportChart }) {
   const table = asTableChartData(chart.data);
+  const columnMeta = useMemo(() => {
+    return table.headers.map((header, index) => {
+      const isNumeric = table.rows.some((row) => typeof row[index] === "number");
+      const isDate = /date/i.test(header);
+      return { header, isNumeric, isDate };
+    });
+  }, [table.headers, table.rows]);
+
   const formattedRows = useMemo(() => {
     return table.rows.map((row) => {
-      return row.map((cell) => {
+      return row.map((cell, index) => {
+        const meta = columnMeta[index];
+
         if (typeof cell === "number") {
-          return Number.isInteger(cell) ? cell.toLocaleString("en-US") : cell.toLocaleString("en-US", { maximumFractionDigits: 2 });
+          if (Math.abs(cell) >= 1_000_000_000) {
+            return `${(cell / 1_000_000_000).toFixed(2)}B`;
+          }
+
+          if (Math.abs(cell) >= 1_000_000) {
+            return `${(cell / 1_000_000).toFixed(2)}M`;
+          }
+
+          if (meta?.isDate) {
+            return String(cell);
+          }
+
+          return Number.isInteger(cell)
+            ? cell.toLocaleString("en-US")
+            : cell.toLocaleString("en-US", { maximumFractionDigits: 2 });
         }
 
         if (cell === null) {
@@ -106,7 +204,7 @@ function TableChart({ chart }: { chart: ReportChart }) {
         return String(cell);
       });
     });
-  }, [table.rows]);
+  }, [columnMeta, table.rows]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -119,20 +217,34 @@ function TableChart({ chart }: { chart: ReportChart }) {
         <table className="min-w-full border-collapse text-left text-xs">
           <thead className="bg-slate-100">
             <tr>
-              {table.headers.map((header) => (
-                <th key={header} className="whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold text-slate-700">
-                  {header}
+              {columnMeta.map((meta) => (
+                <th
+                  key={meta.header}
+                  className={`whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold text-slate-700 ${
+                    meta.isNumeric ? "text-right" : meta.isDate ? "text-center" : "text-left"
+                  }`}
+                >
+                  {meta.header}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {formattedRows.map((row, rowIndex) => (
-              <tr key={`row-${rowIndex}`} className={rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+              <tr
+                key={`row-${rowIndex}`}
+                className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50"} transition hover:bg-cyan-50/50`}
+              >
                 {row.map((cell, colIndex) => (
                   <td
                     key={`cell-${rowIndex}-${colIndex}`}
-                    className="whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700"
+                    className={`whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700 ${
+                      columnMeta[colIndex]?.isNumeric
+                        ? "text-right font-medium tabular-nums"
+                        : columnMeta[colIndex]?.isDate
+                          ? "text-center"
+                          : "text-left"
+                    }`}
                   >
                     {cell}
                   </td>
@@ -262,9 +374,9 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
         if (chart.chart_type === "line") {
           return (
-            <div key={chart.chart_id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div key={chart.chart_id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <h4 className="mb-3 text-sm font-semibold text-slate-900">{chart.title}</h4>
-              <ReactECharts option={buildLineOption(chart, !useThreeColumnGrid)} style={{ width: "100%", height: "320px" }} />
+              <ReactECharts option={buildLineOption(chart, !useThreeColumnGrid)} style={{ width: "100%", height: "340px" }} />
             </div>
           );
         }

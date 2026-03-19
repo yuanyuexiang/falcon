@@ -2,41 +2,36 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { LineChart } from "@/components/charts/LineChart";
-import { fetchMetrics } from "@/services/metrics";
-import type { MetricPoint, MetricsResponse } from "@/types/metrics";
-import { transformSheetsToStackedChartData } from "@/utils/transform";
+import { ReportSectionCharts } from "@/components/charts/ReportCharts";
+import { fetchReport } from "@/services/reports";
+import type { ReportDocument, ReportMenuKey, ReportSection } from "@/types/reports";
 
-const DEFAULT_METRIC = "Annual_Inc";
-const DEFAULT_SHEETS = ["Tapes", "Platform"];
+interface MenuConfig {
+  key: ReportMenuKey;
+  label: string;
+}
+
+const MENUS: MenuConfig[] = [
+  {
+    key: "platform-overview",
+    label: "Platform Overview",
+  },
+  {
+    key: "data-analytics",
+    label: "Data Analytics",
+  },
+  {
+    key: "pricing-scenario",
+    label: "Pricing & Scenario",
+  },
+];
 
 export default function DashboardPage() {
-  const [metrics, setMetrics] = useState<string[]>([]);
-  const [sheetData, setSheetData] = useState<Record<string, MetricPoint[]>>({});
-  const [selectedMetric, setSelectedMetric] = useState<string>(DEFAULT_METRIC);
-  const [selectedSheets, setSelectedSheets] = useState<string[]>(DEFAULT_SHEETS);
+  const [reports, setReports] = useState<Partial<Record<ReportMenuKey, ReportDocument>>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-
-  const loadMetricsList = async (): Promise<string[]> => {
-    const response = await fetchMetrics({ sheet: DEFAULT_SHEETS[1] });
-    return response.metrics;
-  };
-
-  const loadSheetData = async (metric: string, sheets: string[]) => {
-    const responses = await Promise.all(
-      sheets.map((sheet) => fetchMetrics({ metric, sheet })),
-    );
-
-    const nextData: Record<string, MetricPoint[]> = {};
-
-    sheets.forEach((sheet, index) => {
-      const response = responses[index] as MetricsResponse;
-      nextData[sheet] = response.grouped[metric] ?? [];
-    });
-
-    return nextData;
-  };
+  const [activeMenu, setActiveMenu] = useState<ReportMenuKey>("platform-overview");
+  const [activeSectionKey, setActiveSectionKey] = useState<string>("");
 
   useEffect(() => {
     let mounted = true;
@@ -44,29 +39,31 @@ export default function DashboardPage() {
     const load = async () => {
       try {
         setIsLoading(true);
-        const list = await loadMetricsList();
 
-        const effectiveMetric = list.includes(selectedMetric)
-          ? selectedMetric
-          : (list[0] ?? DEFAULT_METRIC);
-
-        const dataBySheet = await loadSheetData(effectiveMetric, selectedSheets);
+        const result = await Promise.all(
+          MENUS.map(async (menu) => {
+            const report = await fetchReport(menu.key);
+            return [menu.key, report] as const;
+          }),
+        );
 
         if (!mounted) {
           return;
         }
 
-        setMetrics(list);
-        setSheetData(dataBySheet);
+        const nextReports = result.reduce<Partial<Record<ReportMenuKey, ReportDocument>>>(
+          (accumulator, [menuKey, report]) => {
+            accumulator[menuKey] = report;
+            return accumulator;
+          },
+          {},
+        );
 
-        if (effectiveMetric !== selectedMetric) {
-          setSelectedMetric(effectiveMetric);
-        }
-
+        setReports(nextReports);
         setError("");
       } catch (loadError) {
         if (mounted) {
-          setError(loadError instanceof Error ? loadError.message : "加载数据失败");
+          setError(loadError instanceof Error ? loadError.message : "加载报表失败");
         }
       } finally {
         if (mounted) {
@@ -80,95 +77,127 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [selectedMetric, selectedSheets]);
+  }, []);
 
-  const chartData = useMemo(() => {
-    if (!selectedMetric || selectedSheets.length === 0) {
-      return { dates: [], series: [] };
+  const activeReport = reports[activeMenu];
+
+  const activeSections = useMemo(() => {
+    if (!activeReport) {
+      return [] as ReportSection[];
     }
 
-    return transformSheetsToStackedChartData(sheetData);
-  }, [sheetData, selectedMetric, selectedSheets]);
+    return [...activeReport.sections].sort((a, b) => a.order - b.order);
+  }, [activeReport]);
 
-  const handleSheetToggle = (sheet: string) => {
-    setSelectedSheets((prev) => {
-      if (prev.includes(sheet)) {
-        return prev.filter((item) => item !== sheet);
-      }
+  useEffect(() => {
+    if (activeSections.length === 0) {
+      setActiveSectionKey("");
+      return;
+    }
 
-      return [...prev, sheet];
-    });
+    const currentExists = activeSections.some((section) => section.section_key === activeSectionKey);
+
+    if (!currentExists) {
+      setActiveSectionKey(activeSections[0]?.section_key ?? "");
+    }
+  }, [activeSections, activeSectionKey]);
+
+  const activeSection = useMemo(() => {
+    return activeSections.find((section) => section.section_key === activeSectionKey) ?? null;
+  }, [activeSections, activeSectionKey]);
+
+  const handleMainMenuClick = (menuKey: ReportMenuKey) => {
+    setActiveMenu(menuKey);
+
+    const sections = reports[menuKey]?.sections ?? [];
+    const sorted = [...sections].sort((a, b) => a.order - b.order);
+    setActiveSectionKey(sorted[0]?.section_key ?? "");
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-6xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Loan BI Dashboard</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              贷款核心指标趋势分析（按 Sheet 多折线展示）
-            </p>
+    <main className="min-h-screen bg-slate-100">
+      <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
+        <aside className="w-full rounded-2xl border border-slate-200 bg-slate-900 p-4 text-slate-100 shadow-lg lg:h-full lg:w-80 lg:overflow-y-auto">
+          <h1 className="mb-6 text-lg font-semibold tracking-wide">BI Report Manager</h1>
+
+          <nav className="space-y-3">
+            {MENUS.map((menu) => {
+              const menuReport = reports[menu.key];
+              const menuSections = [...(menuReport?.sections ?? [])].sort((a, b) => a.order - b.order);
+              const selected = activeMenu === menu.key;
+
+              return (
+                <div key={menu.key} className="rounded-xl border border-slate-700 bg-slate-800/80">
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                      selected ? "bg-sky-700 text-white" : "text-slate-200 hover:bg-slate-700"
+                    }`}
+                    onClick={() => handleMainMenuClick(menu.key)}
+                  >
+                    {menu.label}
+                  </button>
+
+                  <div className="px-2 pb-2">
+                    {menuSections.map((section) => {
+                      const subSelected = selected && activeSectionKey === section.section_key;
+
+                      return (
+                        <button
+                          key={section.id}
+                          type="button"
+                          className={`mt-1 w-full rounded-lg px-3 py-2 text-left text-xs transition ${
+                            subSelected
+                              ? "bg-slate-100 text-slate-900"
+                              : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                          }`}
+                          onClick={() => {
+                            setActiveMenu(menu.key);
+                            setActiveSectionKey(section.section_key);
+                          }}
+                        >
+                          {section.title}
+                        </button>
+                      );
+                    })}
+
+                    {menuSections.length === 0 && (
+                      <p className="mt-2 px-3 py-2 text-xs text-slate-400">No sections</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:overflow-y-auto">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            {isLoading && <p className="text-sm text-slate-600">Loading reports...</p>}
+
+            {!isLoading && error && <p className="text-sm text-red-600">{error}</p>}
+
+            {!isLoading && !error && activeReport && activeSection && (
+              <>
+                <header className="mb-5 border-b border-slate-200 pb-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    {activeReport.name}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">{activeSection.title}</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Section Key: {activeSection.section_key} · Status: {activeSection.status}
+                  </p>
+                </header>
+
+                <ReportSectionCharts section={activeSection} />
+              </>
+            )}
+
+            {!isLoading && !error && activeReport && !activeSection && (
+              <p className="text-sm text-slate-600">当前菜单暂无可展示内容。</p>
+            )}
           </div>
-
-          <div className="grid w-full gap-4 sm:max-w-lg sm:grid-cols-2">
-            <div>
-              <label htmlFor="metric-selector" className="mb-2 block text-sm font-medium text-slate-700">
-                指标选择器
-              </label>
-              <select
-                id="metric-selector"
-                value={selectedMetric}
-                onChange={(event) => setSelectedMetric(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none ring-sky-600 transition focus:ring-2"
-                disabled={isLoading || metrics.length === 0}
-              >
-                {metrics.map((metric) => (
-                  <option key={metric} value={metric}>
-                    {metric}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <p className="mb-2 block text-sm font-medium text-slate-700">Sheet 选择</p>
-              <div className="flex items-center gap-4 rounded-lg border border-slate-300 bg-white px-3 py-2">
-                {DEFAULT_SHEETS.map((sheet) => (
-                  <label key={sheet} className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={selectedSheets.includes(sheet)}
-                      onChange={() => handleSheetToggle(sheet)}
-                      disabled={isLoading}
-                    />
-                    {sheet}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {isLoading && <p className="text-sm text-slate-600">Loading...</p>}
-
-        {!isLoading && error && <p className="text-sm text-red-600">{error}</p>}
-
-        {!isLoading && !error && chartData.dates.length > 0 && chartData.series.length > 0 && (
-          <LineChart
-            title={`${selectedMetric} by Sheet (Multi-Line Trend)`}
-            dates={chartData.dates}
-            series={chartData.series}
-          />
-        )}
-
-        {!isLoading && !error && (chartData.dates.length === 0 || chartData.series.length === 0) && (
-          <p className="text-sm text-slate-600">当前指标暂无可展示数据。</p>
-        )}
-
-        {!isLoading && !error && selectedSheets.length === 0 && (
-          <p className="text-sm text-amber-700">请至少选择一个 Sheet。</p>
-        )}
+        </section>
       </div>
     </main>
   );

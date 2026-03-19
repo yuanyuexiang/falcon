@@ -58,7 +58,7 @@ export function LineChart({ title, dates, series }: LineChartProps) {
       name: item.name,
       type: "line",
       smooth: true,
-      connectNulls: false,
+      connectNulls: true,
       data: item.data,
       lineStyle: {
         width: 3,

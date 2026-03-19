@@ -3,6 +3,10 @@
         "/^npx create-next-app@latest \\. --ts --tailwind --eslint --app --use-npm --yes$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^node -e \"const fs=require\\('fs'\\);const files=\\['rpt_platform','rpt_analytics','rpt_financial'\\];for\\(const f of files\\)\\{const j=JSON\\.parse\\(fs\\.readFileSync\\('data/'\\+f\\+'\\.json','utf8'\\)\\);console\\.log\\('\\\\n#',j\\.name,'\\('\\+f\\+'\\)'\\);for\\(const s of j\\.sections\\|\\|\\[\\]\\)\\{const charts=s\\.content_items\\?\\.charts\\|\\|\\[\\];const typeCount=charts\\.reduce\\(\\(m,c\\)=>\\(m\\[c\\.chart_type\\]=\\(m\\[c\\.chart_type\\]\\|\\|0\\)\\+1,m\\),\\{\\}\\);console\\.log\\('-',s\\.order,s\\.title,'\\| key=',s\\.section_key,'\\| status=',s\\.status,'\\| charts=',charts\\.length,'\\| types=',JSON\\.stringify\\(typeCount\\)\\);\\}\\}\"$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

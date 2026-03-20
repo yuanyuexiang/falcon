@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import analyticsReport from "@/data/rpt_analytics.json";
-import financialReport from "@/data/rpt_financial.json";
-import platformReport from "@/data/rpt_platform.json";
+import analyticsReport from "@/data/echarts/rpt_analytics.echarts.json";
+import financialReport from "@/data/echarts/rpt_financial.echarts.json";
+import platformReport from "@/data/echarts/rpt_platform.echarts.json";
 import type { ReportDocument } from "@/types/reports";
 
 const REPORTS: Record<string, ReportDocument> = {

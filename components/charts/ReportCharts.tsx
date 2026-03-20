@@ -66,6 +66,91 @@ function asTableChartData(data: ReportChart["data"]): TableChartData {
 }
 
 function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
+  if (chart.echarts) {
+    const axisData = chart.echarts.xAxis?.data ?? [];
+    const series = chart.echarts.series ?? [];
+
+    return {
+      color: CHART_COLORS,
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(15, 23, 42, 0.86)",
+        borderWidth: 0,
+        textStyle: {
+          color: "#f8fafc",
+          fontSize: 12,
+        },
+        extraCssText: "border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,0.2);",
+        valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
+      },
+      legend: {
+        type: "scroll",
+        top: 0,
+        show: showLegend,
+        textStyle: {
+          color: "#475569",
+        },
+      },
+      grid: {
+        top: 56,
+        left: 54,
+        right: 20,
+        bottom: 50,
+      },
+      dataZoom: [
+        {
+          type: "inside",
+        },
+        {
+          type: "slider",
+          height: 18,
+          borderColor: "#dbe5ef",
+          fillerColor: "rgba(11, 60, 93, 0.22)",
+          backgroundColor: "rgba(148, 163, 184, 0.12)",
+          handleStyle: {
+            color: "#0b3c5d",
+            borderColor: "#0b3c5d",
+          },
+        },
+      ],
+      xAxis: {
+        type: chart.echarts.xAxis?.type ?? "category",
+        data: axisData,
+        axisLabel: {
+          color: "#334155",
+          hideOverlap: true,
+          interval: "auto",
+          formatter: (value: string | number) => formatDateLabel(value),
+        },
+      },
+      yAxis: {
+        type: chart.echarts.yAxis?.type ?? "value",
+        name: chart.echarts.yAxis?.name ?? "Value",
+        min: chart.echarts.yAxis?.min,
+        max: chart.echarts.yAxis?.max,
+        axisLabel: {
+          color: "#334155",
+          formatter: (value: number) => formatAxisNumber(value),
+        },
+        splitLine: {
+          lineStyle: {
+            color: "#e2e8f0",
+          },
+        },
+      },
+      series: series.map((item) => ({
+        ...item,
+        emphasis: {
+          focus: "series",
+          lineStyle: {
+            width: (item.lineStyle?.width ?? 2) + 2,
+            color: item.lineStyle?.color,
+          },
+        },
+      })),
+    };
+  }
+
   const data = asLineChartData(chart.data);
   const minMax = chart.config?.y_axis_range;
 
@@ -165,46 +250,100 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
 }
 
 function TableChart({ chart }: { chart: ReportChart }) {
+  if (chart.table) {
+    const { columns, rows } = chart.table;
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3">
+          <h4 className="text-sm font-semibold text-slate-900">{chart.title}</h4>
+          {chart.subtitle && <p className="mt-1 text-xs text-slate-500">{chart.subtitle}</p>}
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="min-w-full border-collapse text-left text-xs">
+            <thead className="bg-slate-100">
+              <tr>
+                {columns.map((column) => (
+                  <th
+                    key={column.key}
+                    className={`whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold text-slate-700 ${
+                      column.align === "right" ? "text-right" : column.align === "center" ? "text-center" : "text-left"
+                    }`}
+                  >
+                    {column.title}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr
+                  key={`row-${rowIndex}`}
+                  className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50"} transition hover:bg-cyan-50/50`}
+                >
+                  {columns.map((column) => {
+                    const value = row[column.key];
+                    return (
+                      <td
+                        key={`cell-${rowIndex}-${column.key}`}
+                        className={`whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700 ${
+                          column.align === "right"
+                            ? "text-right font-medium tabular-nums"
+                            : column.align === "center"
+                              ? "text-center"
+                              : "text-left"
+                        }`}
+                      >
+                        {value === null ? "-" : String(value)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   const table = asTableChartData(chart.data);
-  const columnMeta = useMemo(() => {
-    return table.headers.map((header, index) => {
-      const isNumeric = table.rows.some((row) => typeof row[index] === "number");
-      const isDate = /date/i.test(header);
-      return { header, isNumeric, isDate };
-    });
-  }, [table.headers, table.rows]);
+  const columnMeta = table.headers.map((header, index) => {
+    const isNumeric = table.rows.some((row) => typeof row[index] === "number");
+    const isDate = /date/i.test(header);
+    return { header, isNumeric, isDate };
+  });
 
-  const formattedRows = useMemo(() => {
-    return table.rows.map((row) => {
-      return row.map((cell, index) => {
-        const meta = columnMeta[index];
+  const formattedRows = table.rows.map((row) => {
+    return row.map((cell, index) => {
+      const meta = columnMeta[index];
 
-        if (typeof cell === "number") {
-          if (Math.abs(cell) >= 1_000_000_000) {
-            return `${(cell / 1_000_000_000).toFixed(2)}B`;
-          }
-
-          if (Math.abs(cell) >= 1_000_000) {
-            return `${(cell / 1_000_000).toFixed(2)}M`;
-          }
-
-          if (meta?.isDate) {
-            return String(cell);
-          }
-
-          return Number.isInteger(cell)
-            ? cell.toLocaleString("en-US")
-            : cell.toLocaleString("en-US", { maximumFractionDigits: 2 });
+      if (typeof cell === "number") {
+        if (Math.abs(cell) >= 1_000_000_000) {
+          return `${(cell / 1_000_000_000).toFixed(2)}B`;
         }
 
-        if (cell === null) {
-          return "-";
+        if (Math.abs(cell) >= 1_000_000) {
+          return `${(cell / 1_000_000).toFixed(2)}M`;
         }
 
-        return String(cell);
-      });
+        if (meta?.isDate) {
+          return String(cell);
+        }
+
+        return Number.isInteger(cell)
+          ? cell.toLocaleString("en-US")
+          : cell.toLocaleString("en-US", { maximumFractionDigits: 2 });
+      }
+
+      if (cell === null) {
+        return "-";
+      }
+
+      return String(cell);
     });
-  }, [columnMeta, table.rows]);
+  });
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -331,6 +470,16 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
     if (!firstLineChart) {
       return [] as Array<{ label: string; color: string }>;
+    }
+
+    if (firstLineChart.echarts?.series) {
+      const fallbackColors = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6"];
+      return firstLineChart.echarts.series.map((series, index) => {
+        return {
+          label: series.name,
+          color: series.lineStyle?.color ?? series.itemStyle?.color ?? fallbackColors[index % fallbackColors.length],
+        };
+      });
     }
 
     const lineData = asLineChartData(firstLineChart.data);

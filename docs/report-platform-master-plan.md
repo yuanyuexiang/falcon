@@ -1,24 +1,24 @@
-# BI 报告平台整合方案（唯一版）
+# BI 报告平台整合方案（Excel 驱动版）
 
 ## 1. 项目目标
 
-构建一个由 PostgreSQL 驱动的可配置报告平台，替代静态 JSON 人工维护模式，实现：
+构建一个由 Excel 文件驱动的可配置报告平台，实现：
 
-1. report 结构化配置（report/section/chart/dataset）
-2. 数据库抽取与指标计算自动化
-3. 渲染快照版本化发布
-4. 前端只读已发布快照
+1. report 结构化配置（report/section/chart）
+2. 通过 Excel 上传解析 dataset 数据
+3. 自动填充 ECharts option 并生成报告 JSON
+4. 前端只读已发布快照 JSON
 
 ## 1.1 MVP 主线（当前版本统一口径）
 
 第一版按最简路径落地：
 
-1. 将 report/section/chart 的属性字段存入数据库。
-2. 将图表 dataset 数据存入数据库。
-3. 后端按配置与数据组装生成最终报告 JSON。
-4. 前端只读取组装后的报告 JSON（快照）。
+1. 上传标准化 Excel 文件。
+2. 后端解析 Excel，提取 report/section/chart 属性与 dataset 数据。
+3. 后端按规则组装生成最终报告 JSON。
+4. 前端读取最新发布的报告快照。
 
-说明：第一版不做复杂配置编辑器，不做动态权限，不做高级调度编排。
+说明：第一版不引入数据库依赖，不做复杂配置编辑器，不做动态权限。
 
 ## 2. 统一实体模型
 
@@ -37,14 +37,14 @@
 每个图表（chart）至少包含两类信息：
 
 1. echarts option（展示配置）
-2. 数据库表数据（按指标口径计算后的序列或表格数据）
+2. dataset 数据（从 Excel 解析出的序列或表格）
 
 后端开发必须遵循以下边界：
 
 1. chart 的 option 与数据结果分开建模，不互相硬编码。
 2. section 只负责编排内容，不直接承担指标计算。
 3. report 只作为容器，不直接存放图表计算逻辑。
-4. 数据计算逻辑下沉到 dataset 与作业流程中。
+4. 数据转换逻辑统一下沉到解析与组装流程中。
 
 建议输出契约：
 
@@ -102,23 +102,18 @@
 
 ## 2.4 dataset
 
-作用：图表绑定的数据源定义。
+作用：图表绑定的数据（由 Excel 解析得到）。
 
 核心字段建议：
 
-1. id
-2. dataset_key
-3. source_type
-4. query_template
-5. params_schema_json
-6. metric_name
-7. formatter
-8. unit
-9. precision
-10. refresh_policy
-11. cache_ttl
-12. null_policy
-13. timezone
+1. dataset_key
+2. source_sheet
+3. formatter
+4. unit
+5. precision
+6. series_name
+7. point_time
+8. metric_value
 
 ## 2.5 render_snapshot
 
@@ -126,29 +121,29 @@
 
 核心字段建议：
 
-1. id
-2. report_id
+1. snapshot_id
+2. report_key
 3. version
 4. payload_json
 5. payload_hash
-6. generated_by_run_id
+6. source_file
 7. generated_at
 
 ## 3. 分层架构
 
-## 3.1 Extract 层
+## 3.1 Parse 层
 
-职责：从业务库抽取原子数据。
+职责：解析 Excel 原始内容。
 
 规则：
 
-1. 不做复杂业务计算
-2. 保留原始时间字段
-3. 支持全量与增量
+1. 按固定模板读取 sheet 和字段。
+2. 保留原始时间与数值，不做补零。
+3. 输出标准化中间结构。
 
-## 3.2 Metric 层
+## 3.2 Normalize 层
 
-职责：统一口径计算指标序列。
+职责：规范化为统一图表数据结构。
 
 统一输出字段：
 
@@ -163,17 +158,17 @@
 规则：
 
 1. 时间粒度统一（建议 month_end）
-2. 缺失值保留 null，不补 0
+2. 缺失值保持 null
 
 ## 3.3 Assembly 层
 
-职责：将 option 模板与 metric 结果组装为报告 JSON。
+职责：将 option 模板与规范化数据组装为报告 JSON。
 
 规则：
 
-1. 输出结构兼容当前 data/echarts 的协议
-2. chart 配置与数据结果解耦
-3. 组装完成写入 render_snapshot
+1. 输出结构兼容当前 data/echarts 协议。
+2. chart 配置与数据结果解耦。
+3. 组装完成写入 render_snapshot。
 
 组装输入最小集合：
 
@@ -184,72 +179,48 @@
 
 组装输出：
 
-1. 单个 report 完整 JSON（结构与 `data/echarts/*.echarts.json` 对齐）
+1. 单个 report 完整 JSON（结构与 data/echarts/*.echarts.json 对齐）
 2. 写入 render_snapshot 作为前端读取源
 
 ## 3.4 Publish 层
 
-职责：版本发布与审计。
+职责：版本发布与追溯。
 
 规则：
 
-1. 发布前做基础结构检查
-2. 发布必须记录操作日志
+1. 发布前做基础结构检查。
+2. 发布后更新当前 published_version。
+3. 保留 source_file 与 payload_hash 便于追溯。
 
-第一版发布定义：
+## 4. Excel 模板约定
 
-1. 将本次组装结果标记为当前 published_version。
-2. 前端读取最新 published_version 对应的 snapshot。
+建议使用 4 个 sheet：
 
-## 4. 数据库表建议
+1. report_meta：report_key, name, type, status
+2. sections：section_key, title, subtitle, order_no, layout
+3. charts：chart_id, section_key, chart_type, title, subtitle, formatter, option_template_json
+4. chart_points：chart_id, series_name, point_time, metric_value
 
-基础流水线表：
+可选 sheet：
 
-1. rpt.run_batch
-2. rpt.metric_series_points
-3. rpt.report_payload
-
-配置与发布表：
-
-1. rpt.report
-2. rpt.report_section
-3. rpt.report_chart
-4. rpt.dataset_definition
-5. rpt.render_snapshot
-6. rpt.report_publish_log
-
-设计原则：
-
-1. option 和绑定配置用 jsonb
-2. 指标点结构化存储便于核对
-3. 快照完整存储便于发布追溯
+1. chart_table_rows：chart_id, row_no, col_key, col_value
 
 ## 5. API 设计
 
 统一 API（展示端与管理端共用）：
 
-1. POST /v1/reports （创建 report）
-2. GET /v1/reports （查询 report 列表）
-3. GET /v1/reports/{report_key} （查询 report 详情）
-4. PUT /v1/reports/{report_key} （更新 report 基础信息）
-5. DELETE /v1/reports/{report_key} （删除 report）
+1. POST /v1/reports/upload-excel （上传并解析 Excel）
+2. POST /v1/reports/assemble （按最新解析结果组装报告）
+3. POST /v1/reports/{report_key}/publish （发布当前组装结果）
+4. GET /v1/reports （查询报告列表）
+5. GET /v1/reports/{report_key} （查询报告详情）
 6. GET /v1/reports/{report_key}/sections/{section_key}
-7. POST /v1/reports/{report_key}/sections （创建 section）
-8. POST /v1/reports/{report_key}/sections/{section_key}/charts （创建 chart）
-9. POST /v1/reports/{report_key}/publish
-
-作业 API（同一命名空间）：
-
-1. POST /v1/jobs/extract
-2. POST /v1/jobs/metric
-3. POST /v1/jobs/assemble
-4. POST /v1/jobs/publish
 
 当前阶段约定：
 
 1. 展示端与管理端共用同一套 API。
 2. 暂不引入鉴权与角色控制。
-3. 先完成数据抽取、组装、发布闭环。
+3. 先完成上传、解析、组装、发布闭环。
 
 ## 5.1 接口契约样例（后端开发可直接落地）
 
@@ -257,9 +228,9 @@
 
 ```json
 {
-	"code": 0,
-	"message": "ok",
-	"data": {}
+  "code": 0,
+  "message": "ok",
+  "data": {}
 }
 ```
 
@@ -267,25 +238,46 @@
 
 ```json
 {
-	"code": 1001,
-	"message": "invalid request",
-	"error": {
-		"field": "report_key",
-		"detail": "report_key already exists"
-	}
+  "code": 1001,
+  "message": "invalid request",
+  "error": {
+    "field": "file",
+    "detail": "unsupported excel template"
+  }
 }
 ```
 
-创建 report：POST /v1/reports
+上传 Excel：POST /v1/reports/upload-excel
+
+请求：multipart/form-data
+
+字段：
+
+1. file（xlsx）
+2. report_key（可选，覆盖模板中的 report_key）
+
+响应体：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "report_key": "data-analytics",
+    "source_file": "analytics_20260323.xlsx",
+    "parsed_charts": 12,
+    "parsed_points": 252
+  }
+}
+```
+
+组装报告：POST /v1/reports/assemble
 
 请求体：
 
 ```json
 {
-	"report_key": "data-analytics",
-	"name": "Data Analytics",
-	"type": "analytics",
-	"status": "active"
+  "report_key": "data-analytics"
 }
 ```
 
@@ -293,104 +285,24 @@
 
 ```json
 {
-	"code": 0,
-	"message": "ok",
-	"data": {
-		"id": "rpt_analytics",
-		"report_key": "data-analytics",
-		"published_version": 0
-	}
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "report_key": "data-analytics",
+    "snapshot_id": 10001,
+    "payload_hash": "sha256:xxxxx"
+  }
 }
 ```
 
-创建 section：POST /v1/reports/{report_key}/sections
+发布报告：POST /v1/reports/{report_key}/publish
 
 请求体：
 
 ```json
 {
-	"section_key": "origination_trends",
-	"title": "Origination Trends",
-	"subtitle": null,
-	"order_no": 1,
-	"layout": "grid-3"
-}
-```
-
-创建 chart：POST /v1/reports/{report_key}/sections/{section_key}/charts
-
-请求体：
-
-```json
-{
-	"chart_key": "orig_1",
-	"chart_type": "line",
-	"title": "Total Origination Balance",
-	"subtitle": null,
-	"dataset_binding_json": {
-		"dataset_key": "ds_orig_bal",
-		"series": ["Platform", "Tapes w High Grade Mix", "Tapes w Platform Mix"]
-	},
-	"option_template_json": {
-		"xAxis": { "type": "category" },
-		"yAxis": { "type": "value", "name": "Origination Balance (k)" }
-	}
-}
-```
-
-查询 report 详情：GET /v1/reports/{report_key}
-
-响应体（核心结构）：
-
-```json
-{
-	"code": 0,
-	"message": "ok",
-	"data": {
-		"id": "rpt_analytics",
-		"report_key": "data-analytics",
-		"name": "Data Analytics",
-		"sections": [
-			{
-				"section_key": "origination_trends",
-				"title": "Origination Trends",
-				"subtitle": null,
-				"content_items": {
-					"charts": [
-						{
-							"chart_id": "orig_1",
-							"chart_type": "line",
-							"title": "Total Origination Balance",
-							"echarts": {
-								"xAxis": { "type": "category", "data": ["2016-06", "2016-12"] },
-								"yAxis": { "type": "value", "name": "Origination Balance (k)", "min": 0, "max": 153786874.44 },
-								"series": [
-									{ "name": "Platform", "type": "line", "data": [41366576.93, 80030708.74] }
-								]
-							},
-							"table_data": null,
-							"meta": {
-								"formatter": "thousands",
-								"metric_name": "Orig_Bal",
-								"display_precision": 3
-							}
-						}
-					]
-				}
-			}
-		]
-	}
-}
-```
-
-发布 report：POST /v1/reports/{report_key}/publish
-
-请求体：
-
-```json
-{
-	"run_id": 20260320001,
-	"comment": "first publish"
+  "snapshot_id": 10001,
+  "comment": "first publish"
 }
 ```
 
@@ -398,32 +310,25 @@
 
 ```json
 {
-	"code": 0,
-	"message": "ok",
-	"data": {
-		"report_key": "data-analytics",
-		"published_version": 1,
-		"snapshot_id": 10001
-	}
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "report_key": "data-analytics",
+    "published_version": 1,
+    "snapshot_id": 10001
+  }
 }
 ```
-
-后端运行配置（开发环境）：
-
-1. DATABASE_URL="postgresql+asyncpg://postgres:squirrel_canon_20260101@117.72.204.201:5432/canon"
-2. Python 连接驱动使用 asyncpg（与 URL 协议头一致）。
-3. 应用启动时优先从环境变量读取，不在代码中硬编码连接串。
-4. 该连接串仅用于当前开发指导，生产环境应改为密钥管理方式。
 
 ## 6. 作业流程
 
-1. 创建 run_batch（running）
-2. 执行 extract SQL
-3. 执行 metric SQL
-4. 执行 assembly
+1. 上传 Excel 文件
+2. 解析模板并做字段校验
+3. 规范化数据结构
+4. 组装报告 JSON
 5. 执行质量校验
-6. 写入 render_snapshot
-7. 更新 run_batch 状态（success/failed）
+6. 生成 render_snapshot
+7. 发布 snapshot 为当前版本
 
 ## 7. 质量门禁
 
@@ -431,7 +336,7 @@
 2. xAxis 与 series 点位长度一致
 3. 缺失值必须为 null
 4. formatter 与指标口径一致
-5. payload 可追溯到 run_id 与 SQL 版本
+5. payload 可追溯到 source_file 与 payload_hash
 
 第一版最小校验（必须实现）：
 
@@ -469,26 +374,125 @@ section_key: origination_trends
 
 M1（本周）：
 
-1. 完成 schema 与核心表
-2. 完成 analytics 指标 SQL 初版
-3. 完成 report 组装脚本初版
+1. 完成 Excel 模板定义与上传接口
+2. 完成解析与组装脚本初版
+3. 完成 report JSON 生成与前端联调
 
 M2（下周）：
 
-1. 接入 platform 和 financial
+1. 接入 platform 和 financial 模板
 2. 完成发布链路
 3. 完成新旧 JSON 对账报告
 
 ## 10. 待确认清单
 
-1. 业务库 schema 与表名
-2. 每个指标的原始字段映射
-3. 时间字段定义（放款日/账期日/快照日）
-4. 三个 series 的分群规则
-5. 作业执行频率与窗口
+1. Excel 模板字段最终清单
+2. 时间字段格式（YYYY-MM 或 YYYY-MM-DD）
+3. 百分比和千位单位展示规则
+4. 三个 series 的业务分群规则
+5. 上传频率与发布频率
 
 ## 11. 现有实现关联
 
-1. SQL 基础结构：sql/report_pipeline/001_base_schema.sql
-2. 指标输出契约：sql/report_pipeline/002_metric_output_contract.sql
-3. 当前前端消费结构：data/echarts/*.echarts.json
+1. 当前前端消费结构：data/echarts/*.echarts.json
+2. 当前 report 样例：data/echarts/rpt_analytics.echarts.json
+
+## 12. Report JSON 协议（正式）
+
+本节定义后端最终输出给前端的报告 JSON 结构，作为前后端固定契约。
+
+### 12.1 顶层字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | string | 是 | 报告唯一标识，例如 rpt_analytics |
+| report_key | string | 是 | 业务键，例如 data-analytics |
+| name | string | 是 | 报告名称 |
+| type | string | 是 | 报告类型 |
+| status | string | 是 | 报告状态，建议 published/draft |
+| published_version | number | 是 | 当前发布版本号 |
+| generated_at | string | 否 | 生成时间，ISO8601 |
+| source_file | string | 否 | 来源 Excel 文件名 |
+| payload_hash | string | 否 | 报告内容哈希 |
+| sections | array | 是 | 段落列表 |
+
+### 12.2 section 字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | string | 否 | section 唯一标识 |
+| section_key | string | 是 | 段落业务键 |
+| title | string | 是 | 段落标题 |
+| subtitle | string/null | 否 | 段落子标题 |
+| status | string | 否 | 段落状态 |
+| order | number | 是 | 段落顺序 |
+| layout | string | 否 | 布局方式 |
+| content | string/null | 否 | 内容模板，例如 {{chart:orig_1}} |
+| content_items | object | 是 | 内容对象 |
+
+### 12.3 chart 字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| chart_id | string | 是 | 图表唯一标识 |
+| chart_type | string | 是 | 图表类型，line/table 等 |
+| title | string | 是 | 图表标题 |
+| subtitle | string/null | 否 | 图表子标题 |
+| echarts | object/null | 条件必填 | line 图必填，table 图可为 null |
+| table_data | object/null | 条件必填 | table 图必填，line 图可为 null |
+| meta | object | 是 | 元信息（formatter、metric_name 等） |
+
+### 12.4 line 图约定
+
+1. `chart_type = line`
+2. `echarts.xAxis.data` 必须存在且有序
+3. `echarts.series[].data.length` 必须与 `xAxis.data.length` 一致
+4. 缺失点使用 `null`，禁止补 `0`
+
+### 12.5 table 图约定
+
+1. `chart_type = table`
+2. `table_data.columns` 必须包含 key/title/align
+3. `table_data.rows` 为对象数组，键名与 columns.key 一致
+
+### 12.6 最小示例
+
+```json
+{
+  "id": "rpt_analytics",
+  "report_key": "data-analytics",
+  "name": "Data Analytics",
+  "type": "analytics",
+  "status": "published",
+  "published_version": 1,
+  "sections": [
+    {
+      "section_key": "origination_trends",
+      "title": "Origination Trends",
+      "subtitle": null,
+      "order": 1,
+      "content_items": {
+        "charts": [
+          {
+            "chart_id": "orig_1",
+            "chart_type": "line",
+            "title": "Total Origination Balance",
+            "subtitle": null,
+            "echarts": {
+              "xAxis": { "type": "category", "data": ["2016-06", "2016-12"] },
+              "yAxis": { "type": "value", "name": "Origination Balance (k)" },
+              "series": [
+                { "name": "Platform", "type": "line", "data": [41366576.93, 80030708.74] }
+              ]
+            },
+            "table_data": null,
+            "meta": { "formatter": "thousands", "metric_name": "Orig_Bal", "display_precision": 3 }
+          }
+        ],
+        "kind": null,
+        "items": null
+      }
+    }
+  ]
+}
+```

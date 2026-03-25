@@ -1,5 +1,3 @@
-export type ReportMenuKey = "platform-overview" | "data-analytics" | "pricing-scenario";
-
 export interface TextBlockItem {
   type: string;
   text: string;
@@ -91,6 +89,7 @@ export interface SectionContentItems {
 export interface ReportSection {
   id: string;
   section_key: string;
+  chapter_key?: string;
   title: string;
   subtitle: string | null;
   status: string;
@@ -99,15 +98,35 @@ export interface ReportSection {
   content_items: SectionContentItems;
 }
 
-export interface ReportDocument {
-  id: string;
-  name: string;
-  type: string;
-  project_id: string;
+export interface ReportChapter {
+  chapter_key: string;
+  title: string;
+  subtitle: string | null;
+  order: number;
   status: string;
   sections: ReportSection[];
 }
 
+export interface ReportDocument {
+  id: string;
+  report_key?: string;
+  name: string;
+  type: string;
+  project_id?: string;
+  status: string;
+  sections?: ReportSection[];
+  chapters?: ReportChapter[];
+}
+
 export interface ReportApiResponse {
   report: ReportDocument;
+}
+
+export interface BackendReportEnvelope {
+  code: number;
+  message: string;
+  data?: {
+    payload?: ReportDocument;
+  };
+  error?: unknown;
 }

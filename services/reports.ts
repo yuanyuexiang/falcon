@@ -1,7 +1,7 @@
-import type { ReportApiResponse, ReportDocument, ReportMenuKey } from "@/types/reports";
+import type { ReportApiResponse, ReportDocument } from "@/types/reports";
 
-export async function fetchReport(reportKey: ReportMenuKey): Promise<ReportDocument> {
-  const response = await fetch(`/api/reports/${reportKey}`, {
+export async function fetchReport(reportId: string): Promise<ReportDocument> {
+  const response = await fetch(`/api/reports/${reportId}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -10,7 +10,7 @@ export async function fetchReport(reportKey: ReportMenuKey): Promise<ReportDocum
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch report: ${reportKey} (${response.status})`);
+    throw new Error(`Failed to fetch report: ${reportId} (${response.status})`);
   }
 
   const payload = (await response.json()) as ReportApiResponse;

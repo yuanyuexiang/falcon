@@ -1,36 +1,45 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LucideIcon } from "lucide-react";
-import { Building2, ChartSpline, ChevronRight, CircleDollarSign, LayoutDashboard } from "lucide-react";
+import { BookMarked, Building2, ChevronRight } from "lucide-react";
 
 import { ReportSectionCharts } from "@/components/charts/ReportCharts";
 import { fetchReport } from "@/services/reports";
-import type { ReportDocument, ReportMenuKey, ReportSection } from "@/types/reports";
+import type { ReportChapter, ReportDocument, ReportSection } from "@/types/reports";
 
-interface MenuConfig {
-  key: ReportMenuKey;
-  label: string;
-  icon: LucideIcon;
+const REPORT_ID = "test";
+
+function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
+  if (!report) {
+    return [];
+  }
+
+  if (report.chapters && report.chapters.length > 0) {
+    return [...report.chapters]
+      .sort((a, b) => a.order - b.order)
+      .map((chapter) => ({
+        ...chapter,
+        sections: [...chapter.sections].sort((a, b) => a.order - b.order),
+      }));
+  }
+
+  const fallbackSections = [...(report.sections ?? [])].sort((a, b) => a.order - b.order);
+
+  if (fallbackSections.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      chapter_key: "default_chapter",
+      title: report.name,
+      subtitle: null,
+      order: 1,
+      status: report.status,
+      sections: fallbackSections,
+    },
+  ];
 }
-
-const MENUS: MenuConfig[] = [
-  {
-    key: "platform-overview",
-    label: "Platform Overview",
-    icon: LayoutDashboard,
-  },
-  {
-    key: "data-analytics",
-    label: "Data Analytics",
-    icon: ChartSpline,
-  },
-  {
-    key: "pricing-scenario",
-    label: "Pricing & Scenario",
-    icon: CircleDollarSign,
-  },
-];
 
 const STATUS_STYLES: Record<string, string> = {
   completed: "bg-emerald-100 text-emerald-700",
@@ -39,10 +48,10 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [reports, setReports] = useState<Partial<Record<ReportMenuKey, ReportDocument>>>({});
+  const [report, setReport] = useState<ReportDocument | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  const [activeMenu, setActiveMenu] = useState<ReportMenuKey>("platform-overview");
+  const [activeChapterKey, setActiveChapterKey] = useState<string>("");
   const [activeSectionKey, setActiveSectionKey] = useState<string>("");
 
   useEffect(() => {
@@ -51,27 +60,13 @@ export default function DashboardPage() {
     const load = async () => {
       try {
         setIsLoading(true);
-
-        const result = await Promise.all(
-          MENUS.map(async (menu) => {
-            const report = await fetchReport(menu.key);
-            return [menu.key, report] as const;
-          }),
-        );
+        const fetchedReport = await fetchReport(REPORT_ID);
 
         if (!mounted) {
           return;
         }
 
-        const nextReports = result.reduce<Partial<Record<ReportMenuKey, ReportDocument>>>(
-          (accumulator, [menuKey, report]) => {
-            accumulator[menuKey] = report;
-            return accumulator;
-          },
-          {},
-        );
-
-        setReports(nextReports);
+        setReport(fetchedReport);
         setError("");
       } catch (loadError) {
         if (mounted) {
@@ -91,15 +86,34 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const activeReport = reports[activeMenu];
+  const chapters = useMemo(() => normalizeChapters(report), [report]);
+
+  const activeChapter = useMemo(() => {
+    return chapters.find((chapter) => chapter.chapter_key === activeChapterKey) ?? null;
+  }, [chapters, activeChapterKey]);
 
   const activeSections = useMemo(() => {
-    if (!activeReport) {
+    if (!activeChapter) {
       return [] as ReportSection[];
     }
 
-    return [...activeReport.sections].sort((a, b) => a.order - b.order);
-  }, [activeReport]);
+    return [...activeChapter.sections].sort((a, b) => a.order - b.order);
+  }, [activeChapter]);
+
+  useEffect(() => {
+    if (chapters.length === 0) {
+      setActiveChapterKey("");
+      return;
+    }
+
+    const chapterExists = chapters.some((chapter) => chapter.chapter_key === activeChapterKey);
+
+    if (!chapterExists) {
+      const firstChapter = chapters[0];
+      setActiveChapterKey(firstChapter.chapter_key);
+      setActiveSectionKey(firstChapter.sections[0]?.section_key ?? "");
+    }
+  }, [chapters, activeChapterKey]);
 
   useEffect(() => {
     if (activeSections.length === 0) {
@@ -118,10 +132,10 @@ export default function DashboardPage() {
     return activeSections.find((section) => section.section_key === activeSectionKey) ?? null;
   }, [activeSections, activeSectionKey]);
 
-  const handleMainMenuClick = (menuKey: ReportMenuKey) => {
-    setActiveMenu(menuKey);
+  const handleChapterClick = (chapterKey: string) => {
+    setActiveChapterKey(chapterKey);
 
-    const sections = reports[menuKey]?.sections ?? [];
+    const sections = chapters.find((chapter) => chapter.chapter_key === chapterKey)?.sections ?? [];
     const sorted = [...sections].sort((a, b) => a.order - b.order);
     setActiveSectionKey(sorted[0]?.section_key ?? "");
   };
@@ -141,28 +155,26 @@ export default function DashboardPage() {
           </div>
 
           <nav className="space-y-3">
-            {MENUS.map((menu) => {
-              const menuReport = reports[menu.key];
-              const menuSections = [...(menuReport?.sections ?? [])].sort((a, b) => a.order - b.order);
-              const selected = activeMenu === menu.key;
-              const Icon = menu.icon;
+            {chapters.map((chapter) => {
+              const selected = activeChapterKey === chapter.chapter_key;
 
               return (
-                <div key={menu.key} className="rounded-xl border border-slate-800 bg-slate-900/80">
+                <div key={chapter.chapter_key} className="rounded-xl border border-slate-800 bg-slate-900/80">
                   <button
                     type="button"
                     className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
                       selected ? "bg-cyan-700 text-white" : "text-slate-200 hover:bg-slate-800 hover:text-white"
                     }`}
-                    onClick={() => handleMainMenuClick(menu.key)}
+                    onClick={() => handleChapterClick(chapter.chapter_key)}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{menu.label}</span>
+                    <BookMarked className="h-4 w-4" />
+                    <span>{chapter.title}</span>
                   </button>
 
                   <div className="px-2 pb-2">
-                    {menuSections.map((section) => {
-                      const subSelected = selected && activeSectionKey === section.section_key;
+                    {chapter.sections.map((section) => {
+                      const subSelected =
+                        selected && activeSectionKey === section.section_key;
 
                       return (
                         <button
@@ -174,7 +186,7 @@ export default function DashboardPage() {
                               : "text-slate-200 hover:bg-slate-800 hover:text-white"
                           }`}
                           onClick={() => {
-                            setActiveMenu(menu.key);
+                            setActiveChapterKey(chapter.chapter_key);
                             setActiveSectionKey(section.section_key);
                           }}
                         >
@@ -184,7 +196,7 @@ export default function DashboardPage() {
                       );
                     })}
 
-                    {menuSections.length === 0 && (
+                    {chapter.sections.length === 0 && (
                       <p className="mt-2 px-3 py-2 text-xs text-slate-400">No sections</p>
                     )}
                   </div>
@@ -200,14 +212,17 @@ export default function DashboardPage() {
 
             {!isLoading && error && <p className="text-sm text-red-600">{error}</p>}
 
-            {!isLoading && !error && activeReport && activeSection && (
+            {!isLoading && !error && report && activeChapter && activeSection && (
               <>
                 <header className="mb-5 border-b border-slate-200 pb-4">
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                    {activeReport.name}
+                    {report.name}
                   </p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">{activeSection.title}</h2>
+                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">{activeChapter.title}</h2>
+                  <p className="mt-1 text-base text-slate-600">{activeSection.title}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                    <span>Chapter Key: {activeChapter.chapter_key}</span>
+                    <span className="text-slate-300">|</span>
                     <span>Section Key: {activeSection.section_key}</span>
                     <span className="text-slate-300">|</span>
                     <span
@@ -224,7 +239,7 @@ export default function DashboardPage() {
               </>
             )}
 
-            {!isLoading && !error && activeReport && !activeSection && (
+            {!isLoading && !error && report && !activeSection && (
               <p className="text-sm text-slate-600">当前菜单暂无可展示内容。</p>
             )}
           </div>

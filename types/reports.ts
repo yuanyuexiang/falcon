@@ -87,7 +87,7 @@ export interface SectionContentItems {
 }
 
 export interface ReportSection {
-  id: string;
+  id?: string;
   section_key: string;
   chapter_key?: string;
   title: string;

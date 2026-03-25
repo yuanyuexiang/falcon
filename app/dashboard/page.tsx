@@ -143,14 +143,14 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-100/80">
       <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
-        <aside className="w-full rounded-2xl border border-slate-800/70 bg-slate-950 p-5 text-slate-100 shadow-sm lg:h-full lg:w-80 lg:overflow-y-auto">
+        <aside className="w-full rounded-2xl border border-slate-800/70 bg-slate-950 p-5 text-slate-100 shadow-sm lg:h-full lg:w-60 lg:overflow-y-auto">
           <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3">
             <div className="rounded-lg bg-cyan-500/20 p-2">
               <Building2 className="h-5 w-5 text-cyan-300" />
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-slate-400">Falcon</p>
-              <h1 className="text-sm font-semibold tracking-wide">BI Report Manager</h1>
+              <h1 className="text-sm font-semibold tracking-wide">BI Report</h1>
             </div>
           </div>
 
@@ -175,10 +175,11 @@ export default function DashboardPage() {
                     {chapter.sections.map((section) => {
                       const subSelected =
                         selected && activeSectionKey === section.section_key;
+                      const sectionButtonKey = `${chapter.chapter_key}-${section.section_key}-${section.order}`;
 
                       return (
                         <button
-                          key={section.id}
+                          key={sectionButtonKey}
                           type="button"
                           className={`mt-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
                             subSelected

@@ -97,22 +97,6 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
         right: 20,
         bottom: 50,
       },
-      dataZoom: [
-        {
-          type: "inside",
-        },
-        {
-          type: "slider",
-          height: 18,
-          borderColor: "#dbe5ef",
-          fillerColor: "rgba(11, 60, 93, 0.22)",
-          backgroundColor: "rgba(148, 163, 184, 0.12)",
-          handleStyle: {
-            color: "#0b3c5d",
-            borderColor: "#0b3c5d",
-          },
-        },
-      ],
       xAxis: {
         type: chart.echarts.xAxis?.type ?? "category",
         data: axisData,
@@ -181,22 +165,6 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       right: 20,
       bottom: 50,
     },
-    dataZoom: [
-      {
-        type: "inside",
-      },
-      {
-        type: "slider",
-        height: 18,
-        borderColor: "#dbe5ef",
-        fillerColor: "rgba(11, 60, 93, 0.22)",
-        backgroundColor: "rgba(148, 163, 184, 0.12)",
-        handleStyle: {
-          color: "#0b3c5d",
-          borderColor: "#0b3c5d",
-        },
-      },
-    ],
     xAxis: {
       type: "category",
       data: data.labels,
@@ -461,6 +429,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
   const charts = useMemo(() => section.content_items.charts ?? [], [section.content_items.charts]);
   const textItems = useMemo(() => section.content_items.items ?? [], [section.content_items.items]);
   const useThreeColumnGrid = section.section_key === "origination_trends";
+  const chartGridClass = useThreeColumnGrid ? "grid gap-4 lg:grid-cols-2" : "grid gap-4 lg:grid-cols-2";
   const originTrendsLegend = useMemo(() => {
     if (!useThreeColumnGrid) {
       return [] as Array<{ label: string; color: string }>;
@@ -502,9 +471,9 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
   }
 
   return (
-    <div className={useThreeColumnGrid ? "grid gap-4 lg:grid-cols-3" : "space-y-4"}>
+    <div className={chartGridClass}>
       {useThreeColumnGrid && originTrendsLegend.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:col-span-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:col-span-2">
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {originTrendsLegend.map((item) => (
               <div key={item.label} className="flex items-center gap-2 text-xs text-slate-700">
@@ -518,7 +487,11 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
       {charts.map((chart) => {
         if (chart.chart_type === "table") {
-          return <TableChart key={chart.chart_id} chart={chart} />;
+          return (
+            <div key={chart.chart_id} className="lg:col-span-2">
+              <TableChart chart={chart} />
+            </div>
+          );
         }
 
         if (chart.chart_type === "line") {
@@ -531,13 +504,20 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
         }
 
         return (
-          <div key={chart.chart_id} className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+          <div
+            key={chart.chart_id}
+            className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 lg:col-span-2"
+          >
             暂不支持图表类型: {chart.chart_type}
           </div>
         );
       })}
 
-      {charts.length === 0 && textItems.length > 0 && <TextBlocksChart items={textItems} />}
+      {charts.length === 0 && textItems.length > 0 && (
+        <div className="lg:col-span-2">
+          <TextBlocksChart items={textItems} />
+        </div>
+      )}
     </div>
   );
 }

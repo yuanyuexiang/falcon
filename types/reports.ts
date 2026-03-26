@@ -122,6 +122,19 @@ export interface ReportApiResponse {
   report: ReportDocument;
 }
 
+export interface ReportListItem {
+  id: string;
+  report_key: string;
+  name: string;
+  type: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+export interface ReportListApiResponse {
+  reports: ReportListItem[];
+}
+
 export interface BackendReportEnvelope {
   code: number;
   message: string;

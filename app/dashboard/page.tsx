@@ -1,13 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookMarked, Building2, ChevronRight } from "lucide-react";
 
 import { ReportSectionCharts } from "@/components/charts/ReportCharts";
 import { fetchReport } from "@/services/reports";
 import type { ReportChapter, ReportDocument, ReportSection } from "@/types/reports";
-
-const REPORT_ID = "test";
 
 function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
   if (!report) {
@@ -48,6 +47,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const [reportId, setReportId] = useState<string>("test");
   const [report, setReport] = useState<ReportDocument | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -55,12 +55,20 @@ export default function DashboardPage() {
   const [activeSectionKey, setActiveSectionKey] = useState<string>("");
 
   useEffect(() => {
+    const queryReportId = new URLSearchParams(window.location.search).get("reportId")?.trim();
+
+    if (queryReportId && queryReportId !== reportId) {
+      setReportId(queryReportId);
+    }
+  }, [reportId]);
+
+  useEffect(() => {
     let mounted = true;
 
     const load = async () => {
       try {
         setIsLoading(true);
-        const fetchedReport = await fetchReport(REPORT_ID);
+        const fetchedReport = await fetchReport(reportId);
 
         if (!mounted) {
           return;
@@ -70,7 +78,7 @@ export default function DashboardPage() {
         setError("");
       } catch (loadError) {
         if (mounted) {
-          setError(loadError instanceof Error ? loadError.message : "加载报表失败");
+          setError(loadError instanceof Error ? loadError.message : "Failed to load report");
         }
       } finally {
         if (mounted) {
@@ -84,7 +92,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reportId]);
 
   const chapters = useMemo(() => normalizeChapters(report), [report]);
 
@@ -209,6 +217,13 @@ export default function DashboardPage() {
 
         <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:overflow-y-auto">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Report ID: {reportId}</p>
+              <Link href="/reports" className="text-xs font-medium text-cyan-700 transition hover:text-cyan-800">
+                Back to Reports
+              </Link>
+            </div>
+
             {isLoading && <p className="text-sm text-slate-600">Loading reports...</p>}
 
             {!isLoading && error && <p className="text-sm text-red-600">{error}</p>}
@@ -241,7 +256,7 @@ export default function DashboardPage() {
             )}
 
             {!isLoading && !error && report && !activeSection && (
-              <p className="text-sm text-slate-600">当前菜单暂无可展示内容。</p>
+              <p className="text-sm text-slate-600">No content available for this menu selection.</p>
             )}
           </div>
         </section>

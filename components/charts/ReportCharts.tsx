@@ -465,7 +465,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
   if (charts.length === 0 && textItems.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
-        当前子菜单暂无可视化数据。
+        No chart data is available for this section.
       </div>
     );
   }
@@ -508,7 +508,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
             key={chart.chart_id}
             className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 lg:col-span-2"
           >
-            暂不支持图表类型: {chart.chart_type}
+            Unsupported chart type: {chart.chart_type}
           </div>
         );
       })}

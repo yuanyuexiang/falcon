@@ -6,7 +6,7 @@ import ReactECharts from "echarts-for-react";
 
 import type { LineChartData, ReportChart, ReportSection, TableChartData, TextBlockItem } from "@/types/reports";
 
-const CHART_COLORS = ["#0B3C5D", "#1D70A2", "#2AA198", "#6B7280", "#E76F51", "#3C6E71"];
+const CHART_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
 function formatDateLabel(value: string | number): string {
   if (typeof value !== "string") {
@@ -65,6 +65,82 @@ function asTableChartData(data: ReportChart["data"]): TableChartData {
   return data as TableChartData;
 }
 
+type TrendDirection = "up" | "down" | "flat";
+
+interface TrendInfo {
+  direction: TrendDirection;
+  changePct: number;
+}
+
+function deriveTrend(values: Array<number | null>): TrendInfo {
+  const normalized = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (normalized.length < 2) {
+    return { direction: "flat", changePct: 0 };
+  }
+
+  const first = normalized[0];
+  const last = normalized[normalized.length - 1];
+  const delta = last - first;
+
+  if (first === 0) {
+    return {
+      direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat",
+      changePct: 0,
+    };
+  }
+
+  const changePct = (delta / Math.abs(first)) * 100;
+
+  if (Math.abs(changePct) < 0.01) {
+    return { direction: "flat", changePct: 0 };
+  }
+
+  return {
+    direction: changePct > 0 ? "up" : "down",
+    changePct,
+  };
+}
+
+function getChartTrend(chart: ReportChart): TrendInfo {
+  if (chart.echarts?.series && chart.echarts.series.length > 0) {
+    const primarySeries = chart.echarts.series[0];
+    return deriveTrend(primarySeries.data ?? []);
+  }
+
+  if (chart.data) {
+    const lineData = asLineChartData(chart.data);
+    const primaryDataset = lineData.datasets[0];
+    return deriveTrend(primaryDataset?.data ?? []);
+  }
+
+  return { direction: "flat", changePct: 0 };
+}
+
+function trendStyles(direction: TrendDirection): string {
+  if (direction === "up") {
+    return "bg-emerald-500/20 text-emerald-200 border border-emerald-400/35";
+  }
+
+  if (direction === "down") {
+    return "bg-red-500/20 text-red-200 border border-red-400/35";
+  }
+
+  return "bg-slate-500/20 text-slate-200 border border-slate-400/35";
+}
+
+function trendLabel(direction: TrendDirection): string {
+  if (direction === "up") {
+    return "UP";
+  }
+
+  if (direction === "down") {
+    return "DOWN";
+  }
+
+  return "FLAT";
+}
+
 function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
   if (chart.echarts) {
     const axisData = chart.echarts.xAxis?.data ?? [];
@@ -74,13 +150,14 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       color: CHART_COLORS,
       tooltip: {
         trigger: "axis",
-        backgroundColor: "rgba(15, 23, 42, 0.86)",
-        borderWidth: 0,
+        backgroundColor: "rgba(5, 10, 20, 0.92)",
+        borderWidth: 1,
+        borderColor: "rgba(51, 209, 255, 0.5)",
         textStyle: {
-          color: "#f8fafc",
+          color: "#d9f3ff",
           fontSize: 12,
         },
-        extraCssText: "border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,0.2);",
+        extraCssText: "border-radius:10px;box-shadow:0 12px 30px rgba(0,183,255,0.16);",
         valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
       },
       legend: {
@@ -88,7 +165,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
         top: 0,
         show: showLegend,
         textStyle: {
-          color: "#475569",
+          color: "#9bc5ea",
         },
       },
       grid: {
@@ -101,7 +178,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
         type: chart.echarts.xAxis?.type ?? "category",
         data: axisData,
         axisLabel: {
-          color: "#334155",
+          color: "#9bc5ea",
           hideOverlap: true,
           interval: "auto",
           formatter: (value: string | number) => formatDateLabel(value),
@@ -113,12 +190,12 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
         min: chart.echarts.yAxis?.min,
         max: chart.echarts.yAxis?.max,
         axisLabel: {
-          color: "#334155",
+          color: "#9bc5ea",
           formatter: (value: number) => formatAxisNumber(value),
         },
         splitLine: {
           lineStyle: {
-            color: "#e2e8f0",
+            color: "rgba(137, 179, 220, 0.18)",
           },
         },
       },
@@ -142,13 +219,14 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
     color: CHART_COLORS,
     tooltip: {
       trigger: "axis",
-      backgroundColor: "rgba(15, 23, 42, 0.86)",
-      borderWidth: 0,
+      backgroundColor: "rgba(5, 10, 20, 0.92)",
+      borderWidth: 1,
+      borderColor: "rgba(51, 209, 255, 0.5)",
       textStyle: {
-        color: "#f8fafc",
+        color: "#d9f3ff",
         fontSize: 12,
       },
-      extraCssText: "border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,0.2);",
+      extraCssText: "border-radius:10px;box-shadow:0 12px 30px rgba(0,183,255,0.16);",
       valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
     },
     legend: {
@@ -156,7 +234,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       top: 0,
       show: showLegend,
       textStyle: {
-        color: "#475569",
+        color: "#9bc5ea",
       },
     },
     grid: {
@@ -169,7 +247,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       type: "category",
       data: data.labels,
       axisLabel: {
-        color: "#334155",
+        color: "#9bc5ea",
         hideOverlap: true,
         interval: "auto",
         formatter: (value: string | number) => formatDateLabel(value),
@@ -181,12 +259,12 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
       min: minMax?.[0],
       max: minMax?.[1],
       axisLabel: {
-        color: "#334155",
+        color: "#9bc5ea",
         formatter: (value: number) => formatAxisNumber(value),
       },
       splitLine: {
         lineStyle: {
-          color: "#e2e8f0",
+          color: "rgba(137, 179, 220, 0.18)",
         },
       },
     },
@@ -222,20 +300,20 @@ function TableChart({ chart }: { chart: ReportChart }) {
     const { columns, rows } = chart.table;
 
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="terminal-panel rounded-xl p-4 shadow-sm">
         <div className="mb-3">
-          <h4 className="text-sm font-semibold text-slate-900">{chart.title}</h4>
-          {chart.subtitle && <p className="mt-1 text-xs text-slate-500">{chart.subtitle}</p>}
+          <h4 className="text-sm font-semibold text-cyan-100">{chart.title}</h4>
+          {chart.subtitle && <p className="mt-1 text-xs text-slate-400">{chart.subtitle}</p>}
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <div className="overflow-x-auto rounded-lg border border-cyan-500/20">
           <table className="min-w-full border-collapse text-left text-xs">
-            <thead className="bg-slate-100">
+            <thead className="bg-slate-950/70">
               <tr>
                 {columns.map((column) => (
                   <th
                     key={column.key}
-                    className={`whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold text-slate-700 ${
+                    className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold text-slate-200 ${
                       column.align === "right" ? "text-right" : column.align === "center" ? "text-center" : "text-left"
                     }`}
                   >
@@ -248,14 +326,14 @@ function TableChart({ chart }: { chart: ReportChart }) {
               {rows.map((row, rowIndex) => (
                 <tr
                   key={`row-${rowIndex}`}
-                  className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50"} transition hover:bg-cyan-50/50`}
+                  className={`${rowIndex % 2 === 0 ? "bg-transparent" : "bg-slate-900/40"} transition hover:bg-cyan-500/8`}
                 >
                   {columns.map((column) => {
                     const value = row[column.key];
                     return (
                       <td
                         key={`cell-${rowIndex}-${column.key}`}
-                        className={`whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700 ${
+                        className={`whitespace-nowrap border-b border-cyan-500/10 px-3 py-2 text-slate-200 ${
                           column.align === "right"
                             ? "text-right font-medium tabular-nums"
                             : column.align === "center"
@@ -314,20 +392,20 @@ function TableChart({ chart }: { chart: ReportChart }) {
   });
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="terminal-panel rounded-xl p-4 shadow-sm">
       <div className="mb-3">
-        <h4 className="text-sm font-semibold text-slate-900">{chart.title}</h4>
-        {chart.subtitle && <p className="mt-1 text-xs text-slate-500">{chart.subtitle}</p>}
+        <h4 className="text-sm font-semibold text-cyan-100">{chart.title}</h4>
+        {chart.subtitle && <p className="mt-1 text-xs text-slate-400">{chart.subtitle}</p>}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div className="overflow-x-auto rounded-lg border border-cyan-500/20">
         <table className="min-w-full border-collapse text-left text-xs">
-          <thead className="bg-slate-100">
+          <thead className="bg-slate-950/70">
             <tr>
               {columnMeta.map((meta) => (
                 <th
                   key={meta.header}
-                  className={`whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold text-slate-700 ${
+                  className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold text-slate-200 ${
                     meta.isNumeric ? "text-right" : meta.isDate ? "text-center" : "text-left"
                   }`}
                 >
@@ -340,12 +418,12 @@ function TableChart({ chart }: { chart: ReportChart }) {
             {formattedRows.map((row, rowIndex) => (
               <tr
                 key={`row-${rowIndex}`}
-                className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50"} transition hover:bg-cyan-50/50`}
+                className={`${rowIndex % 2 === 0 ? "bg-transparent" : "bg-slate-900/40"} transition hover:bg-cyan-500/8`}
               >
                 {row.map((cell, colIndex) => (
                   <td
                     key={`cell-${rowIndex}-${colIndex}`}
-                    className={`whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700 ${
+                    className={`whitespace-nowrap border-b border-cyan-500/10 px-3 py-2 text-slate-200 ${
                       columnMeta[colIndex]?.isNumeric
                         ? "text-right font-medium tabular-nums"
                         : columnMeta[colIndex]?.isDate
@@ -383,18 +461,18 @@ function TextBlocksChart({ items }: { items: TextBlockItem[] }) {
       type: "category",
       data: items.map((_, index) => `Paragraph ${index + 1}`),
       axisLabel: {
-        color: "#334155",
+        color: "#9bc5ea",
       },
     },
     yAxis: {
       type: "value",
       name: "Text Length",
       axisLabel: {
-        color: "#334155",
+        color: "#9bc5ea",
       },
       splitLine: {
         lineStyle: {
-          color: "#e2e8f0",
+          color: "rgba(137, 179, 220, 0.18)",
         },
       },
     },
@@ -411,12 +489,12 @@ function TextBlocksChart({ items }: { items: TextBlockItem[] }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h4 className="mb-3 text-sm font-semibold text-slate-900">Text Blocks Overview</h4>
+    <div className="terminal-panel rounded-xl p-4 shadow-sm">
+      <h4 className="mb-3 text-sm font-semibold text-cyan-100">Text Blocks Overview</h4>
       <ReactECharts option={option} style={{ width: "100%", height: "260px" }} />
       <div className="mt-4 space-y-2">
         {items.map((item, index) => (
-          <p key={`${item.type}-${index}`} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p key={`${item.type}-${index}`} className="rounded-lg bg-slate-950/55 px-3 py-2 text-sm text-slate-200">
             {item.text}
           </p>
         ))}
@@ -464,7 +542,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
   if (charts.length === 0 && textItems.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
+      <div className="terminal-panel rounded-xl border-dashed p-8 text-sm text-slate-300">
         No chart data is available for this section.
       </div>
     );
@@ -473,10 +551,10 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
   return (
     <div className={chartGridClass}>
       {useThreeColumnGrid && originTrendsLegend.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:col-span-2">
+        <div className="terminal-panel rounded-xl p-3 shadow-sm lg:col-span-2">
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {originTrendsLegend.map((item) => (
-              <div key={item.label} className="flex items-center gap-2 text-xs text-slate-700">
+              <div key={item.label} className="flex items-center gap-2 text-xs text-slate-200">
                 <span className="inline-block h-0.5 w-6" style={{ backgroundColor: item.color }} />
                 <span>{item.label}</span>
               </div>
@@ -495,9 +573,22 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
         }
 
         if (chart.chart_type === "line") {
+          const trend = getChartTrend(chart);
+
           return (
-            <div key={chart.chart_id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h4 className="mb-3 text-sm font-semibold text-slate-900">{chart.title}</h4>
+            <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h4 className="text-sm font-semibold text-cyan-100">{chart.title}</h4>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                    LIVE SNAPSHOT
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${trendStyles(trend.direction)}`}>
+                    {trendLabel(trend.direction)} {trend.changePct >= 0 ? "+" : ""}
+                    {trend.changePct.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
               <ReactECharts option={buildLineOption(chart, !useThreeColumnGrid)} style={{ width: "100%", height: "340px" }} />
             </div>
           );
@@ -506,7 +597,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
         return (
           <div
             key={chart.chart_id}
-            className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 lg:col-span-2"
+            className="terminal-panel rounded-xl border-dashed p-4 text-sm text-slate-300 lg:col-span-2"
           >
             Unsupported chart type: {chart.chart_type}
           </div>

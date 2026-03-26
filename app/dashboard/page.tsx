@@ -40,12 +40,6 @@ function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
   ];
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  completed: "bg-emerald-100 text-emerald-700",
-  pending: "bg-amber-100 text-amber-700",
-  draft: "bg-slate-100 text-slate-700",
-};
-
 export default function DashboardPage() {
   const [reportId, setReportId] = useState<string>("test");
   const [report, setReport] = useState<ReportDocument | null>(null);
@@ -149,16 +143,16 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100/80">
+    <main className="terminal-gridline min-h-screen">
       <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
-        <aside className="w-full rounded-2xl border border-slate-800/70 bg-slate-950 p-5 text-slate-100 shadow-sm lg:h-full lg:w-60 lg:overflow-y-auto">
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3">
-            <div className="rounded-lg bg-cyan-500/20 p-2">
-              <Building2 className="h-5 w-5 text-cyan-300" />
+        <aside className="terminal-shell w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-60 lg:shrink-0 lg:overflow-y-auto">
+          <div className="terminal-panel mb-6 flex items-center gap-3 rounded-xl px-3 py-3">
+            <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2">
+              <Building2 className="h-5 w-5 text-cyan-200" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400">Falcon</p>
-              <h1 className="text-sm font-semibold tracking-wide">BI Report</h1>
+              <p className="terminal-kicker text-xs uppercase">Falcon</p>
+              <h1 className="text-sm font-semibold tracking-wide text-cyan-100">BI Report</h1>
             </div>
           </div>
 
@@ -167,11 +161,13 @@ export default function DashboardPage() {
               const selected = activeChapterKey === chapter.chapter_key;
 
               return (
-                <div key={chapter.chapter_key} className="rounded-xl border border-slate-800 bg-slate-900/80">
+                <div key={chapter.chapter_key} className="terminal-panel rounded-xl">
                   <button
                     type="button"
                     className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                      selected ? "bg-cyan-700 text-white" : "text-slate-200 hover:bg-slate-800 hover:text-white"
+                      selected
+                        ? "border border-cyan-300/40 bg-cyan-500/20 text-cyan-100"
+                        : "text-slate-200 hover:bg-cyan-500/10 hover:text-cyan-100"
                     }`}
                     onClick={() => handleChapterClick(chapter.chapter_key)}
                   >
@@ -191,8 +187,8 @@ export default function DashboardPage() {
                           type="button"
                           className={`mt-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
                             subSelected
-                              ? "bg-slate-100 text-slate-900"
-                              : "text-slate-200 hover:bg-slate-800 hover:text-white"
+                              ? "bg-cyan-500/20 text-cyan-100"
+                              : "text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-100"
                           }`}
                           onClick={() => {
                             setActiveChapterKey(chapter.chapter_key);
@@ -200,7 +196,7 @@ export default function DashboardPage() {
                           }}
                         >
                           <span>{section.title}</span>
-                          <ChevronRight className={`h-3.5 w-3.5 ${subSelected ? "text-slate-700" : "text-slate-500"}`} />
+                          <ChevronRight className={`h-3.5 w-3.5 ${subSelected ? "text-cyan-200" : "text-slate-500"}`} />
                         </button>
                       );
                     })}
@@ -215,48 +211,62 @@ export default function DashboardPage() {
           </nav>
         </aside>
 
-        <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:overflow-y-auto">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Report ID: {reportId}</p>
-              <Link href="/reports" className="text-xs font-medium text-cyan-700 transition hover:text-cyan-800">
-                Back to Reports
-              </Link>
+        <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:min-h-0 lg:min-w-0">
+          <div className="terminal-shell rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
+            <div className="sticky top-0 z-20 -mx-1 mb-4 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-4 backdrop-blur-sm">
+              <div className="terminal-ticker mb-4 rounded-lg py-2 text-xs text-slate-200">
+                <div className="terminal-ticker-track">
+                  <div className="flex items-center gap-6 px-4">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="terminal-live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                      TERMINAL LIVE
+                    </span>
+                    <span className="text-cyan-200">REPORT: {reportId.toUpperCase()}</span>
+                    <span>CHAPTERS NAVIGATION ONLINE</span>
+                    <span className="text-emerald-300">STREAM SYNCED</span>
+                    <span>MODEL: CREDIT BEHAVIOR INSIGHT</span>
+                    <span className="text-red-300">RISK WATCH ENABLED</span>
+                  </div>
+                  <div className="flex items-center gap-6 px-4" aria-hidden="true">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="terminal-live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                      TERMINAL LIVE
+                    </span>
+                    <span className="text-cyan-200">REPORT: {reportId.toUpperCase()}</span>
+                    <span>CHAPTERS NAVIGATION ONLINE</span>
+                    <span className="text-emerald-300">STREAM SYNCED</span>
+                    <span>MODEL: CREDIT BEHAVIOR INSIGHT</span>
+                    <span className="text-red-300">RISK WATCH ENABLED</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-3">
+                <p className="terminal-kicker text-xs font-medium uppercase">Report ID: {reportId}</p>
+                <Link href="/reports" className="text-xs font-medium text-cyan-300 transition hover:text-cyan-100">
+                  Back to Reports
+                </Link>
+              </div>
+
+              {!isLoading && !error && report && activeChapter && activeSection && (
+                <header>
+                  <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-cyan-100">{activeChapter.title}</h2>
+                  <p className="mt-1 text-base text-slate-300">{activeSection.title}</p>
+                </header>
+              )}
             </div>
 
-            {isLoading && <p className="text-sm text-slate-600">Loading reports...</p>}
+            {isLoading && <p className="text-sm text-slate-300">Loading reports...</p>}
 
-            {!isLoading && error && <p className="text-sm text-red-600">{error}</p>}
+            {!isLoading && error && <p className="text-sm text-red-300">{error}</p>}
 
             {!isLoading && !error && report && activeChapter && activeSection && (
-              <>
-                <header className="mb-5 border-b border-slate-200 pb-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                    {report.name}
-                  </p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">{activeChapter.title}</h2>
-                  <p className="mt-1 text-base text-slate-600">{activeSection.title}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                    <span>Chapter Key: {activeChapter.chapter_key}</span>
-                    <span className="text-slate-300">|</span>
-                    <span>Section Key: {activeSection.section_key}</span>
-                    <span className="text-slate-300">|</span>
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                        STATUS_STYLES[activeSection.status] ?? "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {activeSection.status}
-                    </span>
-                  </div>
-                </header>
-
-                <ReportSectionCharts section={activeSection} />
-              </>
+              <ReportSectionCharts section={activeSection} />
             )}
 
             {!isLoading && !error && report && !activeSection && (
-              <p className="text-sm text-slate-600">No content available for this menu selection.</p>
+              <p className="text-sm text-slate-300">No content available for this menu selection.</p>
             )}
           </div>
         </section>

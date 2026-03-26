@@ -8,9 +8,9 @@ import { fetchReports } from "@/services/reports";
 import type { ReportListItem } from "@/types/reports";
 
 const STATUS_STYLES: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-700",
-  draft: "bg-amber-100 text-amber-700",
-  archived: "bg-slate-200 text-slate-700",
+  active: "bg-emerald-500/20 text-emerald-200",
+  draft: "bg-amber-500/20 text-amber-200",
+  archived: "bg-slate-500/20 text-slate-200",
 };
 
 export default function ReportsPage() {
@@ -40,14 +40,43 @@ export default function ReportsPage() {
   }, [reports]);
 
   return (
-    <main className="min-h-screen bg-slate-100/80">
+    <main className="terminal-gridline min-h-screen">
       <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <header className="terminal-shell mb-5 rounded-2xl p-5 sm:p-6">
+          <div className="terminal-ticker mb-5 rounded-lg py-2 text-xs text-slate-200">
+            <div className="terminal-ticker-track">
+              <div className="flex items-center gap-6 px-4">
+                <span className="inline-flex items-center gap-2">
+                  <span className="terminal-live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                  LIVE FEED
+                </span>
+                <span className="text-cyan-200">NASDAQ STYLE TERMINAL</span>
+                <span>US CREDIT ANALYTICS</span>
+                <span className="text-emerald-300">LATENCY 42ms</span>
+                <span>SNAPSHOT MODE</span>
+                <span className="text-red-300">VOLATILITY 0.72</span>
+                <span>FALCON RESEARCH DESK</span>
+              </div>
+              <div className="flex items-center gap-6 px-4" aria-hidden="true">
+                <span className="inline-flex items-center gap-2">
+                  <span className="terminal-live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                  LIVE FEED
+                </span>
+                <span className="text-cyan-200">NASDAQ STYLE TERMINAL</span>
+                <span>US CREDIT ANALYTICS</span>
+                <span className="text-emerald-300">LATENCY 42ms</span>
+                <span>SNAPSHOT MODE</span>
+                <span className="text-red-300">VOLATILITY 0.72</span>
+                <span>FALCON RESEARCH DESK</span>
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Falcon</p>
-              <h1 className="mt-1 text-2xl font-semibold text-slate-900">Reports Hub</h1>
-              <p className="mt-2 text-sm text-slate-600">Select a report card to open its dashboard chapters and charts.</p>
+              <p className="terminal-kicker text-xs font-semibold uppercase">Falcon Exchange</p>
+              <h1 className="mt-1 text-2xl font-semibold text-cyan-200">Reports Hub</h1>
+              <p className="mt-2 text-sm text-slate-300">Select a report card to open its dashboard chapters and charts.</p>
             </div>
 
             <button
@@ -55,24 +84,30 @@ export default function ReportsPage() {
               onClick={() => {
                 void loadReports();
               }}
-              className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 self-start rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-500/20"
             >
               <RefreshCcw className="h-4 w-4" />
               Refresh List
             </button>
           </div>
+
+          <div className="mt-5 grid gap-2 rounded-xl border border-cyan-500/20 bg-slate-950/50 p-3 text-xs text-slate-300 sm:grid-cols-3">
+            <p>MARKET: US CREDIT ANALYTICS</p>
+            <p className="text-cyan-200">STATUS: LIVE SNAPSHOT</p>
+            <p className="sm:text-right">FEED: /consultant/api/v1/reports</p>
+          </div>
         </header>
 
         {isLoading && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">Loading reports...</div>
+          <div className="terminal-panel rounded-2xl p-6 text-sm text-slate-200">Loading reports...</div>
         )}
 
         {!isLoading && error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 shadow-sm">{error}</div>
+          <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-6 text-sm text-red-200">{error}</div>
         )}
 
         {!isLoading && !error && sortedReports.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">No reports found.</div>
+          <div className="terminal-panel rounded-2xl p-6 text-sm text-slate-300">No reports found.</div>
         )}
 
         {!isLoading && !error && sortedReports.length > 0 && (
@@ -84,29 +119,29 @@ export default function ReportsPage() {
                 <Link
                   key={cardKey}
                   href={`/dashboard?reportId=${encodeURIComponent(report.report_key)}`}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-md"
+                  className="terminal-panel group rounded-2xl p-5 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-[0_0_30px_rgba(0,183,255,0.22)]"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="rounded-lg bg-cyan-100 p-2 text-cyan-700">
+                    <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/15 p-2 text-cyan-200">
                       <FileBarChart2 className="h-5 w-5" />
                     </div>
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                        STATUS_STYLES[report.status] ?? "bg-slate-100 text-slate-700"
+                        STATUS_STYLES[report.status] ?? "bg-slate-500/20 text-slate-200"
                       }`}
                     >
                       {report.status}
                     </span>
                   </div>
 
-                  <h2 className="mt-4 line-clamp-2 text-lg font-semibold text-slate-900">{report.name}</h2>
+                  <h2 className="mt-4 line-clamp-2 text-lg font-semibold text-cyan-100">{report.name}</h2>
 
-                  <div className="mt-3 space-y-1 text-sm text-slate-600">
+                  <div className="mt-3 space-y-1 text-sm text-slate-300">
                     <p>Report Key: {report.report_key}</p>
                     <p>Type: {report.type}</p>
                   </div>
 
-                  <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-cyan-700 transition group-hover:gap-2">
+                  <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-cyan-300 transition group-hover:gap-2">
                     View Report
                     <ArrowRight className="h-4 w-4" />
                   </div>

@@ -9,13 +9,34 @@ import type { LineChartData, ReportChart, ReportSection, TableChartData, TextBlo
 const CHART_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
 function formatDateLabel(value: string | number): string {
-  if (typeof value !== "string") {
+  if (typeof value === "number") {
+    const date = new Date(value);
+
+    if (!Number.isNaN(date.getTime())) {
+      const year = String(date.getFullYear()).slice(2);
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      return `${year}-${month}`;
+    }
+
     return String(value);
   }
 
   if (/^\d{4}-\d{2}$/.test(value)) {
     const [year, month] = value.split("-");
     return `${year.slice(2)}-${month}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const [year, month] = value.split("-");
+    return `${year.slice(2)}-${month}`;
+  }
+
+  const parsed = new Date(value);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    const year = String(parsed.getFullYear()).slice(2);
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
   }
 
   return value;

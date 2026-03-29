@@ -47,6 +47,48 @@ services:
       - "traefik.http.routers.falcon.service=falcon"
       - "traefik.http.services.falcon.loadbalancer.server.port=3000"
 
+  sentinel:
+    container_name: sentinel
+    image: yuanyuexiang/sentinel:v1
+    restart: always
+    ports:
+      - "3000"
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+    networks:
+      - matrix-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sentinel.rule=Host(`admin.10.140.208.14.nip.io`)" # 替换为你的域名
+      - "traefik.http.routers.sentinel.entrypoints=web"
+      - "traefik.http.routers.sentinel.service=sentinel"
+      - "traefik.http.services.sentinel.loadbalancer.server.port=3000"
+
+  consultant:
+    container_name: consultant
+    image: yuanyuexiang/consultant:v1
+    restart: always
+    ports:
+      - "8000"
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+    #depends_on:
+      #- postgres
+      #- milvus
+    networks:
+      - matrix-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.consultant-web.rule=Host(`web.10.140.208.14.nip.io`) && PathPrefix(`/consultant`)" # 替换为你的域名
+      - "traefik.http.routers.consultant-web.entrypoints=web"
+      - "traefik.http.routers.consultant-web.service=consultant"
+      - "traefik.http.routers.consultant-admin.rule=Host(`admin.10.140.208.14.nip.io`) && PathPrefix(`/consultant`)" # 替换为你的域名
+      - "traefik.http.routers.consultant-admin.entrypoints=web"
+      - "traefik.http.routers.consultant-admin.service=consultant"
+      - "traefik.http.services.consultant.loadbalancer.server.port=3000"
+
 networks:
   matrix-network:
     driver: bridge

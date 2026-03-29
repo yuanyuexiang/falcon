@@ -4,7 +4,14 @@ import { useMemo } from "react";
 
 import ReactECharts from "echarts-for-react";
 
-import type { LineChartData, ReportChart, ReportSection, TableChartData, TextBlockItem } from "@/types/reports";
+import type {
+  LineChartData,
+  ReportChart,
+  ReportSection,
+  TableChartData,
+  TableObjectData,
+  TextBlockItem,
+} from "@/types/reports";
 
 const CHART_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
@@ -84,6 +91,61 @@ function asLineChartData(data: ReportChart["data"]): LineChartData {
 
 function asTableChartData(data: ReportChart["data"]): TableChartData {
   return data as TableChartData;
+}
+
+function asTableObjectData(data: unknown): TableObjectData | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const candidate = data as {
+    columns?: unknown;
+    rows?: unknown;
+  };
+
+  if (!Array.isArray(candidate.columns) || !Array.isArray(candidate.rows)) {
+    return null;
+  }
+
+  const columns = candidate.columns.filter(
+    (item): item is TableObjectData["columns"][number] =>
+      !!item && typeof item === "object" && typeof (item as { key?: unknown }).key === "string",
+  );
+
+  const rows = candidate.rows.filter(
+    (item): item is Record<string, string | number | null> => !!item && typeof item === "object" && !Array.isArray(item),
+  );
+
+  if (columns.length === 0) {
+    return null;
+  }
+
+  return {
+    columns,
+    rows,
+  };
+}
+
+function normalizeTablePayload(chart: ReportChart): TableObjectData | TableChartData | null {
+  const objectTable = asTableObjectData(chart.table) ?? asTableObjectData(chart.table_data) ?? asTableObjectData(chart.data);
+
+  if (objectTable) {
+    return objectTable;
+  }
+
+  if (chart.data) {
+    const fallback = asTableChartData(chart.data);
+    if (Array.isArray(fallback.headers) && Array.isArray(fallback.rows)) {
+      return fallback;
+    }
+  }
+
+  return null;
+}
+
+function isTableChart(chart: ReportChart): boolean {
+  const normalizedType = String(chart.chart_type ?? "").toLowerCase();
+  return normalizedType === "table" || normalizedType === "table_data" || normalizeTablePayload(chart) !== null;
 }
 
 type TrendDirection = "up" | "down" | "flat";
@@ -212,16 +274,17 @@ function hasLineChartData(chart: ReportChart): boolean {
 }
 
 function hasTableChartData(chart: ReportChart): boolean {
-  if (chart.table) {
-    return chart.table.rows.length > 0;
+  const tableData = normalizeTablePayload(chart);
+
+  if (!tableData) {
+    return false;
   }
 
-  if (chart.data) {
-    const tableData = asTableChartData(chart.data);
+  if ("columns" in tableData) {
     return tableData.rows.length > 0;
   }
 
-  return false;
+  return tableData.rows.length > 0;
 }
 
 function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
@@ -379,8 +442,18 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
 }
 
 function TableChart({ chart }: { chart: ReportChart }) {
-  if (chart.table) {
-    const { columns, rows } = chart.table;
+  const tablePayload = normalizeTablePayload(chart);
+
+  if (!tablePayload) {
+    return (
+      <div className="terminal-panel rounded-xl p-5 text-sm text-slate-300">
+        No table data available for current filters.
+      </div>
+    );
+  }
+
+  if ("columns" in tablePayload) {
+    const { columns, rows } = tablePayload;
 
     return (
       <div className="terminal-panel rounded-xl p-4 shadow-sm">
@@ -437,7 +510,7 @@ function TableChart({ chart }: { chart: ReportChart }) {
     );
   }
 
-  const table = asTableChartData(chart.data);
+  const table = tablePayload;
   const columnMeta = table.headers.map((header, index) => {
     const isNumeric = table.rows.some((row) => typeof row[index] === "number");
     const isDate = /date/i.test(header);
@@ -647,7 +720,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
       )}
 
       {charts.map((chart) => {
-        if (chart.chart_type === "table") {
+        if (isTableChart(chart)) {
           if (!hasTableChartData(chart)) {
             return (
               <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 text-sm text-slate-300 lg:col-span-2">

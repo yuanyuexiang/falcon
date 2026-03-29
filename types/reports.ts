@@ -26,12 +26,24 @@ export interface TableChartData {
   rows: Array<Array<string | number | null>>;
 }
 
+export interface TableColumn {
+  key: string;
+  title: string;
+  align?: "left" | "center" | "right";
+}
+
+export interface TableObjectData {
+  columns: TableColumn[];
+  rows: Array<Record<string, string | number | null>>;
+}
+
 export interface ReportChart {
   chart_id: string;
   chart_type: "line" | "table" | string;
   title: string;
   subtitle: string | null;
   data?: LineChartData | TableChartData;
+  table_data?: TableObjectData;
   echarts?: {
     xAxis?: {
       type?: string;
@@ -60,14 +72,7 @@ export interface ReportChart {
       };
     }>;
   };
-  table?: {
-    columns: Array<{
-      key: string;
-      title: string;
-      align?: "left" | "center" | "right";
-    }>;
-    rows: Array<Record<string, string | number | null>>;
-  };
+  table?: TableObjectData;
   config?: {
     y_axis_label?: string;
     y_axis_range?: number[];

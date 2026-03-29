@@ -7,7 +7,7 @@ import { BookMarked, Building2, ChevronRight } from "lucide-react";
 import { ReportSectionCharts } from "@/components/charts/ReportCharts";
 import { useSectionDetailQuery } from "@/services/reportHooks";
 import { fetchReport } from "@/services/reports";
-import type { ReportChapter, ReportDocument, ReportSection } from "@/types/reports";
+import type { LineChartData, ReportChapter, ReportChart, ReportDocument, ReportSection } from "@/types/reports";
 
 const ALL_FILTER = "All";
 
@@ -15,6 +15,13 @@ interface SectionFilterOptions {
   filter1Values: string[];
   filter2ByFilter1: Record<string, string[]>;
 }
+
+interface SharedLegendItem {
+  label: string;
+  color: string;
+}
+
+const SHARED_LEGEND_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
 function toFilterValue(value: unknown): string | null {
   if (typeof value === "string" && value.trim().length > 0) {
@@ -172,6 +179,61 @@ function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
   ];
 }
 
+function isLineChart(chart: ReportChart): boolean {
+  return chart.chart_type === "line";
+}
+
+function asLineChartData(data: ReportChart["data"]): LineChartData {
+  return data as LineChartData;
+}
+
+function extractSharedLegendItems(section: ReportSection | null): SharedLegendItem[] {
+  if (!section) {
+    return [];
+  }
+
+  const lineCharts = (section.content_items.charts ?? []).filter((chart) => isLineChart(chart));
+
+  if (lineCharts.length <= 1) {
+    return [];
+  }
+
+  const legendMap = new Map<string, string>();
+
+  lineCharts.forEach((chart) => {
+    if (chart.echarts?.series) {
+      chart.echarts.series.forEach((series, index) => {
+        if (!series.name || legendMap.has(series.name)) {
+          return;
+        }
+
+        legendMap.set(
+          series.name,
+          series.lineStyle?.color ?? series.itemStyle?.color ?? SHARED_LEGEND_COLORS[index % SHARED_LEGEND_COLORS.length],
+        );
+      });
+      return;
+    }
+
+    if (chart.data) {
+      const lineData = asLineChartData(chart.data);
+
+      lineData.datasets.forEach((dataset, index) => {
+        if (!dataset.label || legendMap.has(dataset.label)) {
+          return;
+        }
+
+        legendMap.set(
+          dataset.label,
+          dataset.borderColor ?? dataset.backgroundColor ?? SHARED_LEGEND_COLORS[index % SHARED_LEGEND_COLORS.length],
+        );
+      });
+    }
+  });
+
+  return Array.from(legendMap.entries()).map(([label, color]) => ({ label, color }));
+}
+
 export default function DashboardPage() {
   const [reportId, setReportId] = useState<string>("test");
   const [report, setReport] = useState<ReportDocument | null>(null);
@@ -311,6 +373,79 @@ export default function DashboardPage() {
   );
 
   const displaySection = filteredSection ?? activeSection;
+  const sharedLegendItems = useMemo(() => extractSharedLegendItems(displaySection), [displaySection]);
+  const useSharedLegend = sharedLegendItems.length > 0;
+  const [sharedLegendSelection, setSharedLegendSelection] = useState<Record<string, boolean>>({});
+
+  const visibleSharedLegendCount = useMemo(() => {
+    return sharedLegendItems.filter((item) => sharedLegendSelection[item.label] ?? true).length;
+  }, [sharedLegendItems, sharedLegendSelection]);
+
+  const hiddenSeriesNames = useMemo(() => {
+    if (!useSharedLegend) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      sharedLegendItems
+        .filter((item) => !(sharedLegendSelection[item.label] ?? true))
+        .map((item) => item.label),
+    );
+  }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
+
+  const toggleSharedLegendItem = (label: string) => {
+    setSharedLegendSelection((previous) => {
+      const isVisible = previous[label] ?? true;
+
+      if (isVisible) {
+        const visibleCount = sharedLegendItems.filter((item) => previous[item.label] ?? true).length;
+        if (visibleCount <= 1) {
+          return previous;
+        }
+      }
+
+      return {
+        ...previous,
+        [label]: !isVisible,
+      };
+    });
+  };
+
+  const isolateSharedLegendItem = (label: string) => {
+    setSharedLegendSelection(() => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = item.label === label;
+      });
+
+      return nextSelection;
+    });
+  };
+
+  const selectAllSharedLegendItems = () => {
+    setSharedLegendSelection(() => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = true;
+      });
+
+      return nextSelection;
+    });
+  };
+
+  const invertSharedLegendItems = () => {
+    setSharedLegendSelection((previous) => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = !(previous[item.label] ?? true);
+      });
+
+      return nextSelection;
+    });
+  };
 
   const handleChapterClick = (chapterKey: string) => {
     setActiveChapterKey(chapterKey);
@@ -391,8 +526,8 @@ export default function DashboardPage() {
 
         <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:min-h-0 lg:min-w-0">
           <div className="terminal-shell rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
-            <div className="sticky top-0 z-20 -mx-1 mb-4 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-4 backdrop-blur-sm">
-              <div className="terminal-ticker mb-4 rounded-lg py-2 text-xs text-slate-200">
+            <div className="sticky top-0 z-20 -mx-1 mb-3 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-3 backdrop-blur-sm">
+              <div className="terminal-ticker mb-2 rounded-lg py-1.5 text-[11px] text-slate-200">
                 <div className="terminal-ticker-track">
                   <div className="flex items-center gap-6 px-4">
                     <span className="inline-flex items-center gap-2">
@@ -419,7 +554,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mb-4 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-3">
+              <div className="mb-3 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-2">
                 <p className="terminal-kicker text-xs font-medium uppercase">Report ID: {reportId}</p>
                 <Link href="/reports" className="text-xs font-medium text-cyan-300 transition hover:text-cyan-100">
                   Back to Reports
@@ -429,10 +564,10 @@ export default function DashboardPage() {
               {!isLoading && !error && report && activeChapter && displaySection && (
                 <header>
                   <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
-                  <h2 className="mt-1 text-2xl font-semibold text-cyan-100">{activeChapter.title}</h2>
-                  <p className="mt-1 text-base text-slate-300">{displaySection.title}</p>
+                  <h2 className="mt-1 text-xl font-semibold text-cyan-100">{activeChapter.title}</h2>
+                  <p className="mt-0.5 text-sm text-slate-300">{displaySection.title}</p>
 
-                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,220px)_auto] lg:items-end">
+                  <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
                     <label className="space-y-1 text-xs">
                       <span className="block text-slate-400">Filter 1</span>
                       <select
@@ -442,7 +577,7 @@ export default function DashboardPage() {
                           setSelectedFilter1(nextFilter1);
                           setSelectedFilter2(ALL_FILTER);
                         }}
-                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
+                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
                       >
                         <option value={ALL_FILTER}>{ALL_FILTER}</option>
                         {sectionFilterOptions.filter1Values.map((option) => (
@@ -460,7 +595,7 @@ export default function DashboardPage() {
                         onChange={(event) => {
                           setSelectedFilter2(event.target.value);
                         }}
-                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
+                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
                       >
                         <option value={ALL_FILTER}>{ALL_FILTER}</option>
                         {filter2Candidates.map((option) => (
@@ -478,21 +613,73 @@ export default function DashboardPage() {
                           setSelectedFilter1(ALL_FILTER);
                           setSelectedFilter2(ALL_FILTER);
                         }}
-                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-medium text-cyan-100 transition hover:bg-cyan-500/20"
                       >
                         Reset Filters
                       </button>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-[11px] text-slate-400">
                         Current: filter1={selectedFilter1}, filter2={selectedFilter2}
                       </p>
                       {typeof filteredSection?.meta?.filtered_rows_count === "number" && (
-                        <p className="text-xs text-slate-400">
+                        <p className="text-[11px] text-slate-400">
                           Rows: {filteredSection.meta.filtered_rows_count}
                         </p>
                       )}
-                      {isSectionFiltering && <p className="text-xs text-cyan-200">Updating...</p>}
+                      {isSectionFiltering && <p className="text-[11px] text-cyan-200">Updating...</p>}
                     </div>
                   </div>
+
+                  {useSharedLegend && (
+                    <div className="terminal-panel mt-2 rounded-lg px-3 py-2">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400">Shared Legend</p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={selectAllSharedLegendItems}
+                            className="rounded border border-cyan-400/35 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100 transition hover:bg-cyan-500/20"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={invertSharedLegendItems}
+                            className="rounded border border-slate-500/40 bg-slate-700/30 px-2 py-0.5 text-[11px] text-slate-200 transition hover:bg-slate-700/45"
+                          >
+                            Invert
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                        {sharedLegendItems.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => toggleSharedLegendItem(item.label)}
+                            onDoubleClick={() => isolateSharedLegendItem(item.label)}
+                            title="Click: toggle series, double-click: isolate series (at least one series stays visible)"
+                            className={`flex items-center gap-1.5 text-[11px] transition ${
+                              sharedLegendSelection[item.label] ?? true
+                                ? visibleSharedLegendCount === 1
+                                  ? "cursor-not-allowed text-slate-300"
+                                  : "cursor-pointer text-slate-200"
+                                : "cursor-pointer text-slate-500"
+                            }`}
+                          >
+                            <span
+                              className="inline-block h-0.5 w-5"
+                              style={{
+                                backgroundColor: item.color,
+                                opacity: sharedLegendSelection[item.label] ?? true ? 1 : 0.35,
+                              }}
+                            />
+                            <span className={sharedLegendSelection[item.label] ?? true ? "" : "line-through"}>{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </header>
               )}
             </div>
@@ -502,7 +689,11 @@ export default function DashboardPage() {
             {!isLoading && error && <p className="text-sm text-red-300">{error}</p>}
 
             {!isLoading && !error && report && activeChapter && displaySection && (
-              <ReportSectionCharts section={displaySection} />
+              <ReportSectionCharts
+                section={displaySection}
+                sharedLegendEnabled={useSharedLegend}
+                hiddenSeriesNames={hiddenSeriesNames}
+              />
             )}
 
             {!isLoading && !error && report && !displaySection && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import ReactECharts from "echarts-for-react";
 
@@ -660,127 +660,23 @@ function TextBlocksChart({ items }: { items: TextBlockItem[] }) {
   );
 }
 
-export function ReportSectionCharts({ section }: { section: ReportSection }) {
+interface ReportSectionChartsProps {
+  section: ReportSection;
+  sharedLegendEnabled?: boolean;
+  hiddenSeriesNames?: Set<string>;
+}
+
+export function ReportSectionCharts({
+  section,
+  sharedLegendEnabled,
+  hiddenSeriesNames,
+}: ReportSectionChartsProps) {
   const charts = useMemo(() => section.content_items.charts ?? [], [section.content_items.charts]);
   const textItems = useMemo(() => section.content_items.items ?? [], [section.content_items.items]);
   const chartGridClass = "grid gap-4 lg:grid-cols-2";
-  const lineCharts = useMemo(() => charts.filter((chart) => chart.chart_type === "line"), [charts]);
-  const useSharedLegend = lineCharts.length > 1;
-  const sharedLegendItems = useMemo(() => {
-    if (!useSharedLegend) {
-      return [] as Array<{ label: string; color: string }>;
-    }
-
-    const legendMap = new Map<string, string>();
-
-    lineCharts.forEach((chart) => {
-      if (chart.echarts?.series) {
-        chart.echarts.series.forEach((series, index) => {
-          if (!series.name || legendMap.has(series.name)) {
-            return;
-          }
-
-          legendMap.set(
-            series.name,
-            series.lineStyle?.color ?? series.itemStyle?.color ?? CHART_COLORS[index % CHART_COLORS.length],
-          );
-        });
-        return;
-      }
-
-      if (chart.data) {
-        const lineData = asLineChartData(chart.data);
-        lineData.datasets.forEach((dataset, index) => {
-          if (!dataset.label || legendMap.has(dataset.label)) {
-            return;
-          }
-
-          legendMap.set(
-            dataset.label,
-            dataset.borderColor ?? dataset.backgroundColor ?? CHART_COLORS[index % CHART_COLORS.length],
-          );
-        });
-      }
-    });
-
-    return Array.from(legendMap.entries()).map(([label, color]) => ({ label, color }));
-  }, [lineCharts, useSharedLegend]);
-  const [sharedLegendSelection, setSharedLegendSelection] = useState<Record<string, boolean>>({});
-
-  const hiddenSeriesNames = useMemo(() => {
-    if (!useSharedLegend) {
-      return new Set<string>();
-    }
-
-    return new Set(
-      sharedLegendItems
-        .filter((item) => !(sharedLegendSelection[item.label] ?? true))
-        .map((item) => item.label),
-    );
-  }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
-
-  const sharedVisibleCount = useMemo(() => {
-    if (!useSharedLegend) {
-      return 0;
-    }
-
-    return sharedLegendItems.filter((item) => sharedLegendSelection[item.label] ?? true).length;
-  }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
-
-  const toggleSharedLegendItem = (label: string) => {
-    setSharedLegendSelection((previous) => {
-      const isCurrentlyVisible = previous[label] ?? true;
-
-      if (isCurrentlyVisible) {
-        const visibleCount = sharedLegendItems.filter((item) => previous[item.label] ?? true).length;
-
-        if (visibleCount <= 1) {
-          return previous;
-        }
-      }
-
-      return {
-        ...previous,
-        [label]: !isCurrentlyVisible,
-      };
-    });
-  };
-
-  const isolateSharedLegendItem = (label: string) => {
-    setSharedLegendSelection(() => {
-      const nextSelection: Record<string, boolean> = {};
-
-      sharedLegendItems.forEach((item) => {
-        nextSelection[item.label] = item.label === label;
-      });
-
-      return nextSelection;
-    });
-  };
-
-  const selectAllSharedLegendItems = () => {
-    setSharedLegendSelection(() => {
-      const nextSelection: Record<string, boolean> = {};
-
-      sharedLegendItems.forEach((item) => {
-        nextSelection[item.label] = true;
-      });
-
-      return nextSelection;
-    });
-  };
-
-  const invertSharedLegendItems = () => {
-    setSharedLegendSelection((previous) => {
-      const nextSelection: Record<string, boolean> = {};
-
-      sharedLegendItems.forEach((item) => {
-        nextSelection[item.label] = !(previous[item.label] ?? true);
-      });
-
-      return nextSelection;
-    });
-  };
+  const lineChartCount = useMemo(() => charts.filter((chart) => chart.chart_type === "line").length, [charts]);
+  const useSharedLegend = sharedLegendEnabled ?? lineChartCount > 1;
+  const effectiveHiddenSeriesNames = useSharedLegend ? hiddenSeriesNames : undefined;
 
   if (charts.length === 0 && textItems.length === 0) {
     return (
@@ -792,57 +688,6 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
   return (
     <div className={chartGridClass}>
-      {useSharedLegend && sharedLegendItems.length > 0 && (
-        <div className="terminal-panel rounded-xl p-3 shadow-sm lg:col-span-2">
-          <div className="mb-2 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={selectAllSharedLegendItems}
-              className="rounded border border-cyan-400/35 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100 transition hover:bg-cyan-500/20"
-            >
-              Select All
-            </button>
-            <button
-              type="button"
-              onClick={invertSharedLegendItems}
-              className="rounded border border-slate-500/40 bg-slate-700/30 px-2 py-0.5 text-[11px] text-slate-200 transition hover:bg-slate-700/45"
-            >
-              Invert
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {sharedLegendItems.map((item) => (
-              
-              // Keep one series visible to avoid an empty chart state.
-              // This matches common ECharts legend interaction expectations.
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => toggleSharedLegendItem(item.label)}
-                onDoubleClick={() => isolateSharedLegendItem(item.label)}
-                title="Click: toggle series, double-click: isolate series (at least one series stays visible)"
-                className={`flex items-center gap-2 text-xs transition ${
-                  sharedLegendSelection[item.label] ?? true
-                    ? sharedVisibleCount === 1
-                      ? "cursor-not-allowed text-slate-300"
-                      : "cursor-pointer text-slate-200"
-                    : "cursor-pointer text-slate-500"
-                }`}
-              >
-                <span
-                  className="inline-block h-0.5 w-6"
-                  style={{
-                    backgroundColor: item.color,
-                    opacity: sharedLegendSelection[item.label] ?? true ? 1 : 0.35,
-                  }}
-                />
-                <span className={sharedLegendSelection[item.label] ?? true ? "" : "line-through"}>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {charts.map((chart) => {
         if (isTableChart(chart)) {
           if (!hasTableChartData(chart)) {
@@ -886,7 +731,7 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
                 </div>
               </div>
               <ReactECharts
-                option={buildLineOption(chart, !useSharedLegend, hiddenSeriesNames)}
+                option={buildLineOption(chart, !useSharedLegend, effectiveHiddenSeriesNames)}
                 notMerge
                 style={{ width: "100%", height: "340px" }}
               />

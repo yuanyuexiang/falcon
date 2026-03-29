@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import ReactECharts from "echarts-for-react";
 
@@ -287,10 +287,10 @@ function hasTableChartData(chart: ReportChart): boolean {
   return tableData.rows.length > 0;
 }
 
-function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
+function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
   if (chart.echarts) {
     const axisData = chart.echarts.xAxis?.data ?? [];
-    const series = chart.echarts.series ?? [];
+    const series = (chart.echarts.series ?? []).filter((item) => !hiddenSeriesNames?.has(item.name));
 
     return {
       color: CHART_COLORS,
@@ -360,6 +360,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
 
   const data = asLineChartData(chart.data);
   const minMax = chart.config?.y_axis_range;
+  const visibleDatasets = data.datasets.filter((item) => !hiddenSeriesNames?.has(item.label));
 
   return {
     color: CHART_COLORS,
@@ -414,7 +415,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
         },
       },
     },
-    series: data.datasets.map((item) => ({
+    series: visibleDatasets.map((item) => ({
       name: item.label,
       type: item.showLine === false ? "scatter" : "line",
       smooth: chart.config?.smooth_line ?? false,
@@ -662,39 +663,124 @@ function TextBlocksChart({ items }: { items: TextBlockItem[] }) {
 export function ReportSectionCharts({ section }: { section: ReportSection }) {
   const charts = useMemo(() => section.content_items.charts ?? [], [section.content_items.charts]);
   const textItems = useMemo(() => section.content_items.items ?? [], [section.content_items.items]);
-  const useThreeColumnGrid = section.section_key === "origination_trends";
-  const chartGridClass = useThreeColumnGrid ? "grid gap-4 lg:grid-cols-2" : "grid gap-4 lg:grid-cols-2";
-  const originTrendsLegend = useMemo(() => {
-    if (!useThreeColumnGrid) {
+  const chartGridClass = "grid gap-4 lg:grid-cols-2";
+  const lineCharts = useMemo(() => charts.filter((chart) => chart.chart_type === "line"), [charts]);
+  const useSharedLegend = lineCharts.length > 1;
+  const sharedLegendItems = useMemo(() => {
+    if (!useSharedLegend) {
       return [] as Array<{ label: string; color: string }>;
     }
 
-    const firstLineChart = charts.find((chart) => chart.chart_type === "line");
+    const legendMap = new Map<string, string>();
 
-    if (!firstLineChart) {
-      return [] as Array<{ label: string; color: string }>;
+    lineCharts.forEach((chart) => {
+      if (chart.echarts?.series) {
+        chart.echarts.series.forEach((series, index) => {
+          if (!series.name || legendMap.has(series.name)) {
+            return;
+          }
+
+          legendMap.set(
+            series.name,
+            series.lineStyle?.color ?? series.itemStyle?.color ?? CHART_COLORS[index % CHART_COLORS.length],
+          );
+        });
+        return;
+      }
+
+      if (chart.data) {
+        const lineData = asLineChartData(chart.data);
+        lineData.datasets.forEach((dataset, index) => {
+          if (!dataset.label || legendMap.has(dataset.label)) {
+            return;
+          }
+
+          legendMap.set(
+            dataset.label,
+            dataset.borderColor ?? dataset.backgroundColor ?? CHART_COLORS[index % CHART_COLORS.length],
+          );
+        });
+      }
+    });
+
+    return Array.from(legendMap.entries()).map(([label, color]) => ({ label, color }));
+  }, [lineCharts, useSharedLegend]);
+  const [sharedLegendSelection, setSharedLegendSelection] = useState<Record<string, boolean>>({});
+
+  const hiddenSeriesNames = useMemo(() => {
+    if (!useSharedLegend) {
+      return new Set<string>();
     }
 
-    if (firstLineChart.echarts?.series) {
-      const fallbackColors = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6"];
-      return firstLineChart.echarts.series.map((series, index) => {
-        return {
-          label: series.name,
-          color: series.lineStyle?.color ?? series.itemStyle?.color ?? fallbackColors[index % fallbackColors.length],
-        };
-      });
+    return new Set(
+      sharedLegendItems
+        .filter((item) => !(sharedLegendSelection[item.label] ?? true))
+        .map((item) => item.label),
+    );
+  }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
+
+  const sharedVisibleCount = useMemo(() => {
+    if (!useSharedLegend) {
+      return 0;
     }
 
-    const lineData = asLineChartData(firstLineChart.data);
+    return sharedLegendItems.filter((item) => sharedLegendSelection[item.label] ?? true).length;
+  }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
 
-    return lineData.datasets.map((dataset, index) => {
-      const fallbackColors = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6"];
+  const toggleSharedLegendItem = (label: string) => {
+    setSharedLegendSelection((previous) => {
+      const isCurrentlyVisible = previous[label] ?? true;
+
+      if (isCurrentlyVisible) {
+        const visibleCount = sharedLegendItems.filter((item) => previous[item.label] ?? true).length;
+
+        if (visibleCount <= 1) {
+          return previous;
+        }
+      }
+
       return {
-        label: dataset.label,
-        color: dataset.borderColor ?? dataset.backgroundColor ?? fallbackColors[index % fallbackColors.length],
+        ...previous,
+        [label]: !isCurrentlyVisible,
       };
     });
-  }, [charts, useThreeColumnGrid]);
+  };
+
+  const isolateSharedLegendItem = (label: string) => {
+    setSharedLegendSelection(() => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = item.label === label;
+      });
+
+      return nextSelection;
+    });
+  };
+
+  const selectAllSharedLegendItems = () => {
+    setSharedLegendSelection(() => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = true;
+      });
+
+      return nextSelection;
+    });
+  };
+
+  const invertSharedLegendItems = () => {
+    setSharedLegendSelection((previous) => {
+      const nextSelection: Record<string, boolean> = {};
+
+      sharedLegendItems.forEach((item) => {
+        nextSelection[item.label] = !(previous[item.label] ?? true);
+      });
+
+      return nextSelection;
+    });
+  };
 
   if (charts.length === 0 && textItems.length === 0) {
     return (
@@ -706,14 +792,52 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
   return (
     <div className={chartGridClass}>
-      {useThreeColumnGrid && originTrendsLegend.length > 0 && (
+      {useSharedLegend && sharedLegendItems.length > 0 && (
         <div className="terminal-panel rounded-xl p-3 shadow-sm lg:col-span-2">
+          <div className="mb-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={selectAllSharedLegendItems}
+              className="rounded border border-cyan-400/35 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100 transition hover:bg-cyan-500/20"
+            >
+              Select All
+            </button>
+            <button
+              type="button"
+              onClick={invertSharedLegendItems}
+              className="rounded border border-slate-500/40 bg-slate-700/30 px-2 py-0.5 text-[11px] text-slate-200 transition hover:bg-slate-700/45"
+            >
+              Invert
+            </button>
+          </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {originTrendsLegend.map((item) => (
-              <div key={item.label} className="flex items-center gap-2 text-xs text-slate-200">
-                <span className="inline-block h-0.5 w-6" style={{ backgroundColor: item.color }} />
-                <span>{item.label}</span>
-              </div>
+            {sharedLegendItems.map((item) => (
+              
+              // Keep one series visible to avoid an empty chart state.
+              // This matches common ECharts legend interaction expectations.
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => toggleSharedLegendItem(item.label)}
+                onDoubleClick={() => isolateSharedLegendItem(item.label)}
+                title="Click: toggle series, double-click: isolate series (at least one series stays visible)"
+                className={`flex items-center gap-2 text-xs transition ${
+                  sharedLegendSelection[item.label] ?? true
+                    ? sharedVisibleCount === 1
+                      ? "cursor-not-allowed text-slate-300"
+                      : "cursor-pointer text-slate-200"
+                    : "cursor-pointer text-slate-500"
+                }`}
+              >
+                <span
+                  className="inline-block h-0.5 w-6"
+                  style={{
+                    backgroundColor: item.color,
+                    opacity: sharedLegendSelection[item.label] ?? true ? 1 : 0.35,
+                  }}
+                />
+                <span className={sharedLegendSelection[item.label] ?? true ? "" : "line-through"}>{item.label}</span>
+              </button>
             ))}
           </div>
         </div>
@@ -761,7 +885,11 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
                   </span>
                 </div>
               </div>
-              <ReactECharts option={buildLineOption(chart, !useThreeColumnGrid)} style={{ width: "100%", height: "340px" }} />
+              <ReactECharts
+                option={buildLineOption(chart, !useSharedLegend, hiddenSeriesNames)}
+                notMerge
+                style={{ width: "100%", height: "340px" }}
+              />
             </div>
           );
         }

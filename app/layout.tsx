@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Oxanium } from "next/font/google";
+
+import { Providers } from "@/app/providers";
+
 import "./globals.css";
 
 const geistSans = Oxanium({
@@ -28,7 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

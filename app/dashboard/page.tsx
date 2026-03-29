@@ -5,8 +5,140 @@ import { useEffect, useMemo, useState } from "react";
 import { BookMarked, Building2, ChevronRight } from "lucide-react";
 
 import { ReportSectionCharts } from "@/components/charts/ReportCharts";
+import { useSectionDetailQuery } from "@/services/reportHooks";
 import { fetchReport } from "@/services/reports";
 import type { ReportChapter, ReportDocument, ReportSection } from "@/types/reports";
+
+const ALL_FILTER = "All";
+
+interface SectionFilterOptions {
+  filter1Values: string[];
+  filter2ByFilter1: Record<string, string[]>;
+}
+
+function toFilterValue(value: unknown): string | null {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function appendUnique(list: string[], value: string) {
+  if (!list.includes(value)) {
+    list.push(value);
+  }
+}
+
+function isAllOption(value: string): boolean {
+  return value.trim().toLowerCase() === ALL_FILTER.toLowerCase();
+}
+
+function extractSectionFilterOptions(section: ReportSection | null): SectionFilterOptions {
+  if (!section) {
+    return { filter1Values: [], filter2ByFilter1: { [ALL_FILTER]: [] } };
+  }
+
+  const filter1Values: string[] = [];
+  const filter2All: string[] = [];
+  const filter2ByFilter1: Record<string, string[]> = { [ALL_FILTER]: filter2All };
+
+  const addPair = (filter1Raw: unknown, filter2Raw: unknown) => {
+    const filter1 = toFilterValue(filter1Raw);
+    const filter2 = toFilterValue(filter2Raw);
+
+    if (filter1 && !isAllOption(filter1)) {
+      appendUnique(filter1Values, filter1);
+    }
+
+    if (filter2 && !isAllOption(filter2)) {
+      appendUnique(filter2All, filter2);
+    }
+
+    if (filter1 && filter2 && !isAllOption(filter1) && !isAllOption(filter2)) {
+      const list = filter2ByFilter1[filter1] ?? [];
+      appendUnique(list, filter2);
+      filter2ByFilter1[filter1] = list;
+    }
+  };
+
+  const addFilterObject = (source: Record<string, unknown>) => {
+    const filter1Array = source.filter1;
+    const filter2Array = source.filter2;
+
+    if (Array.isArray(filter1Array)) {
+      filter1Array.forEach((item) => {
+        const value = toFilterValue(item);
+        if (value && !isAllOption(value)) {
+          appendUnique(filter1Values, value);
+        }
+      });
+    }
+
+    if (Array.isArray(filter2Array)) {
+      filter2Array.forEach((item) => {
+        const value = toFilterValue(item);
+        if (value && !isAllOption(value)) {
+          appendUnique(filter2All, value);
+        }
+      });
+    }
+
+    const options = source.options;
+
+    if (Array.isArray(options)) {
+      options.forEach((item) => {
+        if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          addPair(row.filter1, row.filter2);
+        }
+      });
+    }
+  };
+
+  (section.content_items.charts ?? []).forEach((chart) => {
+    const chartMeta = chart.meta as Record<string, unknown> | undefined;
+
+    if (!chartMeta) {
+      return;
+    }
+
+    const rawFilters = chartMeta.filters;
+
+    if (rawFilters && typeof rawFilters === "object" && !Array.isArray(rawFilters)) {
+      addFilterObject(rawFilters as Record<string, unknown>);
+    }
+
+    if (Array.isArray(rawFilters)) {
+      rawFilters.forEach((item) => {
+        if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          addPair(row.filter1, row.filter2);
+        }
+      });
+    }
+
+    const sourceRows = chartMeta.source_rows;
+
+    if (Array.isArray(sourceRows)) {
+      sourceRows.forEach((item) => {
+        if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          addPair(row.filter1, row.filter2);
+        }
+      });
+    }
+  });
+
+  return {
+    filter1Values,
+    filter2ByFilter1,
+  };
+}
 
 function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
   if (!report) {
@@ -47,6 +179,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string>("");
   const [activeChapterKey, setActiveChapterKey] = useState<string>("");
   const [activeSectionKey, setActiveSectionKey] = useState<string>("");
+  const [selectedFilter1, setSelectedFilter1] = useState<string>(ALL_FILTER);
+  const [selectedFilter2, setSelectedFilter2] = useState<string>(ALL_FILTER);
 
   useEffect(() => {
     const queryReportId = new URLSearchParams(window.location.search).get("reportId")?.trim();
@@ -133,6 +267,50 @@ export default function DashboardPage() {
   const activeSection = useMemo(() => {
     return activeSections.find((section) => section.section_key === activeSectionKey) ?? null;
   }, [activeSections, activeSectionKey]);
+
+  const sectionFilterOptions = useMemo(
+    () => extractSectionFilterOptions(activeSection),
+    [activeSection],
+  );
+
+  const filter2Candidates = useMemo(() => {
+    if (selectedFilter1 === ALL_FILTER) {
+      return sectionFilterOptions.filter2ByFilter1[ALL_FILTER] ?? [];
+    }
+
+    return sectionFilterOptions.filter2ByFilter1[selectedFilter1] ?? [];
+  }, [sectionFilterOptions.filter2ByFilter1, selectedFilter1]);
+
+  useEffect(() => {
+    if (selectedFilter2 === ALL_FILTER) {
+      return;
+    }
+
+    if (!filter2Candidates.includes(selectedFilter2)) {
+      setSelectedFilter2(ALL_FILTER);
+    }
+  }, [filter2Candidates, selectedFilter2]);
+
+  useEffect(() => {
+    setSelectedFilter1(ALL_FILTER);
+    setSelectedFilter2(ALL_FILTER);
+  }, [activeSectionKey, reportId]);
+
+  const {
+    data: filteredSection,
+    isFetching: isSectionFiltering,
+    error: sectionFilterError,
+  } = useSectionDetailQuery(
+    reportId,
+    activeSectionKey,
+    {
+      filter1: selectedFilter1,
+      filter2: selectedFilter2,
+    },
+    Boolean(reportId && activeSectionKey && activeSection),
+  );
+
+  const displaySection = filteredSection ?? activeSection;
 
   const handleChapterClick = (chapterKey: string) => {
     setActiveChapterKey(chapterKey);
@@ -248,11 +426,73 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              {!isLoading && !error && report && activeChapter && activeSection && (
+              {!isLoading && !error && report && activeChapter && displaySection && (
                 <header>
                   <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
                   <h2 className="mt-1 text-2xl font-semibold text-cyan-100">{activeChapter.title}</h2>
-                  <p className="mt-1 text-base text-slate-300">{activeSection.title}</p>
+                  <p className="mt-1 text-base text-slate-300">{displaySection.title}</p>
+
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,220px)_auto] lg:items-end">
+                    <label className="space-y-1 text-xs">
+                      <span className="block text-slate-400">Filter 1</span>
+                      <select
+                        value={selectedFilter1}
+                        onChange={(event) => {
+                          const nextFilter1 = event.target.value;
+                          setSelectedFilter1(nextFilter1);
+                          setSelectedFilter2(ALL_FILTER);
+                        }}
+                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
+                      >
+                        <option value={ALL_FILTER}>{ALL_FILTER}</option>
+                        {sectionFilterOptions.filter1Values.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="space-y-1 text-xs">
+                      <span className="block text-slate-400">Filter 2</span>
+                      <select
+                        value={selectedFilter2}
+                        onChange={(event) => {
+                          setSelectedFilter2(event.target.value);
+                        }}
+                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
+                      >
+                        <option value={ALL_FILTER}>{ALL_FILTER}</option>
+                        {filter2Candidates.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFilter1(ALL_FILTER);
+                          setSelectedFilter2(ALL_FILTER);
+                        }}
+                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                      >
+                        Reset Filters
+                      </button>
+                      <p className="text-xs text-slate-400">
+                        Current: filter1={selectedFilter1}, filter2={selectedFilter2}
+                      </p>
+                      {typeof filteredSection?.meta?.filtered_rows_count === "number" && (
+                        <p className="text-xs text-slate-400">
+                          Rows: {filteredSection.meta.filtered_rows_count}
+                        </p>
+                      )}
+                      {isSectionFiltering && <p className="text-xs text-cyan-200">Updating...</p>}
+                    </div>
+                  </div>
                 </header>
               )}
             </div>
@@ -261,12 +501,18 @@ export default function DashboardPage() {
 
             {!isLoading && error && <p className="text-sm text-red-300">{error}</p>}
 
-            {!isLoading && !error && report && activeChapter && activeSection && (
-              <ReportSectionCharts section={activeSection} />
+            {!isLoading && !error && report && activeChapter && displaySection && (
+              <ReportSectionCharts section={displaySection} />
             )}
 
-            {!isLoading && !error && report && !activeSection && (
+            {!isLoading && !error && report && !displaySection && (
               <p className="text-sm text-slate-300">No content available for this menu selection.</p>
+            )}
+
+            {!!sectionFilterError && (
+              <p className="mt-3 text-xs text-amber-200">
+                Filter API failed, fallback to base section data.
+              </p>
             )}
           </div>
         </section>

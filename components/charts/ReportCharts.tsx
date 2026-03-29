@@ -93,8 +93,40 @@ interface TrendInfo {
   changePct: number;
 }
 
-function deriveTrend(values: Array<number | null>): TrendInfo {
-  const normalized = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+function extractNumericPointValue(point: unknown): number | null {
+  if (typeof point === "number" && Number.isFinite(point)) {
+    return point;
+  }
+
+  if (Array.isArray(point) && point.length >= 2) {
+    const value = point[1];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  if (point && typeof point === "object") {
+    const candidate = point as { value?: unknown };
+
+    if (typeof candidate.value === "number" && Number.isFinite(candidate.value)) {
+      return candidate.value;
+    }
+
+    if (Array.isArray(candidate.value) && candidate.value.length >= 2) {
+      const tupleValue = candidate.value[1];
+      if (typeof tupleValue === "number" && Number.isFinite(tupleValue)) {
+        return tupleValue;
+      }
+    }
+  }
+
+  return null;
+}
+
+function deriveTrend(values: unknown[]): TrendInfo {
+  const normalized = values
+    .map((value) => extractNumericPointValue(value))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 
   if (normalized.length < 2) {
     return { direction: "flat", changePct: 0 };
@@ -160,6 +192,36 @@ function trendLabel(direction: TrendDirection): string {
   }
 
   return "FLAT";
+}
+
+function hasLineChartData(chart: ReportChart): boolean {
+  if (chart.echarts?.series) {
+    return chart.echarts.series.some((series) =>
+      (series.data ?? []).some((point) => extractNumericPointValue(point) !== null),
+    );
+  }
+
+  if (chart.data) {
+    const lineData = asLineChartData(chart.data);
+    return lineData.datasets.some((dataset) =>
+      dataset.data.some((point) => extractNumericPointValue(point) !== null),
+    );
+  }
+
+  return false;
+}
+
+function hasTableChartData(chart: ReportChart): boolean {
+  if (chart.table) {
+    return chart.table.rows.length > 0;
+  }
+
+  if (chart.data) {
+    const tableData = asTableChartData(chart.data);
+    return tableData.rows.length > 0;
+  }
+
+  return false;
 }
 
 function buildLineOption(chart: ReportChart, showLegend: boolean = true) {
@@ -586,6 +648,14 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
 
       {charts.map((chart) => {
         if (chart.chart_type === "table") {
+          if (!hasTableChartData(chart)) {
+            return (
+              <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 text-sm text-slate-300 lg:col-span-2">
+                No table data available for current filters.
+              </div>
+            );
+          }
+
           return (
             <div key={chart.chart_id} className="lg:col-span-2">
               <TableChart chart={chart} />
@@ -594,6 +664,14 @@ export function ReportSectionCharts({ section }: { section: ReportSection }) {
         }
 
         if (chart.chart_type === "line") {
+          if (!hasLineChartData(chart)) {
+            return (
+              <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 text-sm text-slate-300">
+                No chart data available for current filters.
+              </div>
+            );
+          }
+
           const trend = getChartTrend(chart);
 
           return (

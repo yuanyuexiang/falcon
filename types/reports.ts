@@ -96,6 +96,11 @@ export interface ReportSection {
   order: number;
   content: string | null;
   content_items: SectionContentItems;
+  meta?: {
+    selected_filters?: SectionFilterParams;
+    filtered_rows_count?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface ReportChapter {
@@ -120,6 +125,15 @@ export interface ReportDocument {
 
 export interface ReportApiResponse {
   report: ReportDocument;
+}
+
+export interface SectionFilterParams {
+  filter1?: string;
+  filter2?: string;
+}
+
+export interface SectionDetailApiResponse {
+  section: ReportSection;
 }
 
 export interface ReportListItem {

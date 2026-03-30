@@ -32,7 +32,7 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v2
+    image: yuanyuexiang/falcon:v5
     restart: always
     healthcheck:
       disable: true
@@ -49,7 +49,7 @@ services:
 
   sentinel:
     container_name: sentinel
-    image: yuanyuexiang/sentinel:v1
+    image: yuanyuexiang/sentinel:v5
     restart: always
     ports:
       - "3000"
@@ -67,16 +67,15 @@ services:
 
   consultant:
     container_name: consultant
-    image: yuanyuexiang/consultant:v1
+    image: yuanyuexiang/consultant:v5
     restart: always
     ports:
       - "8000"
     environment:
       - APP_ENV=development
       - DEBUG=true
-    #depends_on:
-      #- postgres
-      #- milvus
+    volumes:
+      - ./consultant:/app/runtime
     networks:
       - matrix-network
     labels:

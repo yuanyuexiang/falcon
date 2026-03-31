@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { BackendReportEnvelope, ReportDocument } from "@/types/reports";
 
-const DEFAULT_REPORT_API_BASE = "http://localhost:8000";
-
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ reportId: string }> },
 ) {
   const { reportId } = await context.params;
-  const reportApiBase = process.env.REPORT_API_BASE_URL ?? DEFAULT_REPORT_API_BASE;
+  const reportApiBase = process.env.REPORT_API_BASE_URL;
   const backendUrl = `${reportApiBase}/consultant/api/v1/reports/${reportId}`;
 
   try {

@@ -15,6 +15,10 @@ import type {
 
 const CHART_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 function formatDateLabel(value: string | number): string {
   if (typeof value === "number") {
     const date = new Date(value);
@@ -87,6 +91,15 @@ function formatTooltipNumber(value: number | string | null): string {
 
 function asLineChartData(data: ReportChart["data"]): LineChartData {
   return data as LineChartData;
+}
+
+function normalizeLineChartData(data: ReportChart["data"]): LineChartData {
+  const lineData = asLineChartData(data);
+
+  return {
+    labels: asArray<string | number>(lineData?.labels),
+    datasets: asArray<LineChartData["datasets"][number]>(lineData?.datasets),
+  };
 }
 
 function asTableChartData(data: ReportChart["data"]): TableChartData {
@@ -224,7 +237,7 @@ function getChartTrend(chart: ReportChart): TrendInfo {
   }
 
   if (chart.data) {
-    const lineData = asLineChartData(chart.data);
+    const lineData = normalizeLineChartData(chart.data);
     const primaryDataset = lineData.datasets[0];
     return deriveTrend(primaryDataset?.data ?? []);
   }
@@ -264,9 +277,9 @@ function hasLineChartData(chart: ReportChart): boolean {
   }
 
   if (chart.data) {
-    const lineData = asLineChartData(chart.data);
+    const lineData = normalizeLineChartData(chart.data);
     return lineData.datasets.some((dataset) =>
-      dataset.data.some((point) => extractNumericPointValue(point) !== null),
+      asArray<unknown>(dataset.data).some((point) => extractNumericPointValue(point) !== null),
     );
   }
 
@@ -358,7 +371,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
     };
   }
 
-  const data = asLineChartData(chart.data);
+  const data = normalizeLineChartData(chart.data);
   const minMax = chart.config?.y_axis_range;
   const visibleDatasets = data.datasets.filter((item) => !hiddenSeriesNames?.has(item.label));
 
@@ -671,8 +684,8 @@ export function ReportSectionCharts({
   sharedLegendEnabled,
   hiddenSeriesNames,
 }: ReportSectionChartsProps) {
-  const charts = useMemo(() => section.content_items.charts ?? [], [section.content_items.charts]);
-  const textItems = useMemo(() => section.content_items.items ?? [], [section.content_items.items]);
+  const charts = useMemo(() => asArray<ReportChart>(section.content_items?.charts), [section.content_items?.charts]);
+  const textItems = useMemo(() => asArray<TextBlockItem>(section.content_items?.items), [section.content_items?.items]);
   const chartGridClass = "grid gap-4 lg:grid-cols-2";
   const lineChartCount = useMemo(() => charts.filter((chart) => chart.chart_type === "line").length, [charts]);
   const useSharedLegend = sharedLegendEnabled ?? lineChartCount > 1;

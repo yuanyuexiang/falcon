@@ -1,0 +1,90 @@
+# 基础建设
+services:
+  traefik:
+    image: traefik:v3.6.5
+    platform: linux/amd64
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=matrix-network"
+      - "--entrypoints.web.address=:80"
+    volumes:
+      - "./data/traefik/letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`traefik.192.168.86.30.nip.io`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.routers.api.service=api@internal"
+    ports:
+      - "80:80"
+      #- "8080:8080"
+      - "443:443"
+    networks:
+      - matrix-network
+
+  falcon:
+    container_name: falcon
+    image: yuanyuexiang/falcon:v15
+    restart: always
+    healthcheck:
+      disable: true
+    environment:
+      - REPORT_API_BASE_URL=web.192.168.86.30.nip.io
+    ports:
+      - "3000:3000"
+    networks:
+      - matrix-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.falcon.rule=Host(`web.192.168.86.30.nip.io`)"
+      - "traefik.http.routers.falcon.entrypoints=web"
+      - "traefik.http.routers.falcon.service=falcon"
+      - "traefik.http.services.falcon.loadbalancer.server.port=3000"
+
+  sentinel:
+    container_name: sentinel
+    image: yuanyuexiang/sentinel:v5
+    restart: always
+    ports:
+      - "3000"
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+    networks:
+      - matrix-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sentinel.rule=Host(`admin.192.168.86.30.nip.io`)" # 替换为你的域名
+      - "traefik.http.routers.sentinel.entrypoints=web"
+      - "traefik.http.routers.sentinel.service=sentinel"
+      - "traefik.http.services.sentinel.loadbalancer.server.port=3000"
+
+  consultant:
+    container_name: consultant
+    image: yuanyuexiang/consultant:v5
+    restart: always
+    ports:
+      - "8000"
+    volumes:
+      - ./consultant:/app/runtime
+    networks:
+      - matrix-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.consultant.rule=(Host(`web.192.168.86.30.nip.io`) || Host(`admin.192.168.86.30.nip.io`)) && PathPrefix(`/consultant`)" # 替换为你的域名
+      - "traefik.http.routers.consultant.entrypoints=web"
+      - "traefik.http.routers.consultant.service=consultant"
+      - "traefik.http.services.consultant.loadbalancer.server.port=8000"
+
+networks:
+  matrix-network:
+    driver: bridge
+    name: matrix-network

@@ -22,7 +22,7 @@ export default function ReportsPage() {
     try {
       setIsLoading(true);
       const list = await fetchReports();
-      setReports(list);
+      setReports(Array.isArray(list) ? list : []);
       setError("");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load report list");
@@ -36,7 +36,8 @@ export default function ReportsPage() {
   }, []);
 
   const sortedReports = useMemo(() => {
-    return [...reports].sort((a, b) => a.name.localeCompare(b.name));
+    const safeReports = Array.isArray(reports) ? reports : [];
+    return [...safeReports].sort((a, b) => a.name.localeCompare(b.name));
   }, [reports]);
 
   return (

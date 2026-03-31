@@ -21,7 +21,13 @@ interface SharedLegendItem {
   color: string;
 }
 
+type EchartsSeriesItem = NonNullable<NonNullable<ReportChart["echarts"]>["series"]>[number];
+
 const SHARED_LEGEND_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
 
 function toFilterValue(value: unknown): string | null {
   if (typeof value === "string" && value.trim().length > 0) {
@@ -107,7 +113,7 @@ function extractSectionFilterOptions(section: ReportSection | null): SectionFilt
     }
   };
 
-  (section.content_items.charts ?? []).forEach((chart) => {
+  asArray<ReportChart>(section.content_items?.charts).forEach((chart) => {
     const chartMeta = chart.meta as Record<string, unknown> | undefined;
 
     if (!chartMeta) {
@@ -152,16 +158,18 @@ function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
     return [];
   }
 
-  if (report.chapters && report.chapters.length > 0) {
-    return [...report.chapters]
+  const reportChapters = asArray<ReportChapter>(report.chapters);
+
+  if (reportChapters.length > 0) {
+    return [...reportChapters]
       .sort((a, b) => a.order - b.order)
       .map((chapter) => ({
         ...chapter,
-        sections: [...chapter.sections].sort((a, b) => a.order - b.order),
+        sections: [...asArray<ReportSection>(chapter.sections)].sort((a, b) => a.order - b.order),
       }));
   }
 
-  const fallbackSections = [...(report.sections ?? [])].sort((a, b) => a.order - b.order);
+  const fallbackSections = [...asArray<ReportSection>(report.sections)].sort((a, b) => a.order - b.order);
 
   if (fallbackSections.length === 0) {
     return [];
@@ -192,7 +200,7 @@ function extractSharedLegendItems(section: ReportSection | null): SharedLegendIt
     return [];
   }
 
-  const lineCharts = (section.content_items.charts ?? []).filter((chart) => isLineChart(chart));
+  const lineCharts = asArray<ReportChart>(section.content_items?.charts).filter((chart) => isLineChart(chart));
 
   if (lineCharts.length <= 1) {
     return [];
@@ -201,8 +209,10 @@ function extractSharedLegendItems(section: ReportSection | null): SharedLegendIt
   const legendMap = new Map<string, string>();
 
   lineCharts.forEach((chart) => {
-    if (chart.echarts?.series) {
-      chart.echarts.series.forEach((series, index) => {
+    const echartsSeries = asArray<EchartsSeriesItem>(chart.echarts?.series);
+
+    if (echartsSeries.length > 0) {
+      echartsSeries.forEach((series, index) => {
         if (!series.name || legendMap.has(series.name)) {
           return;
         }
@@ -217,8 +227,9 @@ function extractSharedLegendItems(section: ReportSection | null): SharedLegendIt
 
     if (chart.data) {
       const lineData = asLineChartData(chart.data);
+      const datasets = asArray<LineChartData["datasets"][number]>(lineData.datasets);
 
-      lineData.datasets.forEach((dataset, index) => {
+      datasets.forEach((dataset, index) => {
         if (!dataset.label || legendMap.has(dataset.label)) {
           return;
         }
@@ -231,7 +242,11 @@ function extractSharedLegendItems(section: ReportSection | null): SharedLegendIt
     }
   });
 
-  return Array.from(legendMap.entries()).map(([label, color]) => ({ label, color }));
+  const items: SharedLegendItem[] = [];
+  legendMap.forEach((color, label) => {
+    items.push({ label, color });
+  });
+  return items;
 }
 
 export default function DashboardPage() {
@@ -295,7 +310,7 @@ export default function DashboardPage() {
       return [] as ReportSection[];
     }
 
-    return [...activeChapter.sections].sort((a, b) => a.order - b.order);
+    return [...asArray<ReportSection>(activeChapter.sections)].sort((a, b) => a.order - b.order);
   }, [activeChapter]);
 
   useEffect(() => {
@@ -450,7 +465,7 @@ export default function DashboardPage() {
   const handleChapterClick = (chapterKey: string) => {
     setActiveChapterKey(chapterKey);
 
-    const sections = chapters.find((chapter) => chapter.chapter_key === chapterKey)?.sections ?? [];
+    const sections = asArray<ReportSection>(chapters.find((chapter) => chapter.chapter_key === chapterKey)?.sections);
     const sorted = [...sections].sort((a, b) => a.order - b.order);
     setActiveSectionKey(sorted[0]?.section_key ?? "");
   };
@@ -489,7 +504,7 @@ export default function DashboardPage() {
                   </button>
 
                   <div className="px-2 pb-2">
-                    {chapter.sections.map((section) => {
+                    {asArray<ReportSection>(chapter.sections).map((section) => {
                       const subSelected =
                         selected && activeSectionKey === section.section_key;
                       const sectionButtonKey = `${chapter.chapter_key}-${section.section_key}-${section.order}`;
@@ -514,7 +529,7 @@ export default function DashboardPage() {
                       );
                     })}
 
-                    {chapter.sections.length === 0 && (
+                    {asArray<ReportSection>(chapter.sections).length === 0 && (
                       <p className="mt-2 px-3 py-2 text-xs text-slate-400">No sections</p>
                     )}
                   </div>

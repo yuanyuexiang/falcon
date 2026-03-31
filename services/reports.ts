@@ -9,7 +9,7 @@ import type {
 } from "@/types/reports";
 
 export async function fetchReport(reportId: string): Promise<ReportDocument> {
-  const response = await fetch(`/consultant/api/v1/reports/${reportId}`, {
+  const response = await fetch(`/api/reports/${reportId}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -26,7 +26,7 @@ export async function fetchReport(reportId: string): Promise<ReportDocument> {
 }
 
 export async function fetchReports(): Promise<ReportListItem[]> {
-  const response = await fetch("/consultant/api/v1/reports", {
+  const response = await fetch("/api/reports", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -50,7 +50,7 @@ export async function getSectionDetail(
   const params = new URLSearchParams();
   params.set("filter1", filters.filter1 ?? "All");
   params.set("filter2", filters.filter2 ?? "All");
-  const url = `/consultant/api/v1/reports/${reportKey}/sections/${sectionKey}?${params.toString()}`;
+  const url = `/api/reports/${reportKey}/sections/${sectionKey}?${params.toString()}`;
 
   const response = await fetch(url, {
     method: "GET",

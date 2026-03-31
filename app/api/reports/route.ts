@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import type { BackendReportEnvelope, ReportListItem } from "@/types/reports";
 
+const DEFAULT_REPORT_API_BASE = "http://consultant:8000";
+
 function normalizeReportList(payload: BackendReportEnvelope): ReportListItem[] {
   const data = payload.data as Record<string, unknown> | undefined;
 
@@ -41,7 +43,7 @@ function normalizeReportList(payload: BackendReportEnvelope): ReportListItem[] {
 }
 
 export async function GET() {
-  const reportApiBase = process.env.REPORT_API_BASE_URL;
+  const reportApiBase = process.env.REPORT_API_BASE_URL ?? DEFAULT_REPORT_API_BASE;
   const backendUrl = `${reportApiBase}/consultant/api/v1/reports`;
 
   try {

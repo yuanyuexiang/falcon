@@ -32,14 +32,14 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v15
+    image: yuanyuexiang/falcon:v16
     restart: always
     healthcheck:
       disable: true
     environment:
-      - REPORT_API_BASE_URL=web.192.168.86.30.nip.io
+      - REPORT_API_BASE_URL=http://web.192.168.86.30.nip.io
     ports:
-      - "3000:3000"
+      - "3000"
     networks:
       - matrix-network
     labels:
@@ -51,13 +51,13 @@ services:
 
   sentinel:
     container_name: sentinel
-    image: yuanyuexiang/sentinel:v5
+    image: yuanyuexiang/sentinel:v9
     restart: always
     ports:
       - "3000"
     environment:
-      - APP_ENV=development
-      - DEBUG=true
+      NEXT_PUBLIC_API_BASE_URL: "http://admin.192.168.86.30.nip.io"
+      NEXT_PUBLIC_API_PREFIX: "/consultant/api"
     networks:
       - matrix-network
     labels:
@@ -74,7 +74,7 @@ services:
     ports:
       - "8000"
     volumes:
-      - ./consultant:/app/runtime
+      - ./data/consultant:/app/runtime
     networks:
       - matrix-network
     labels:

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { ReportSection } from "@/types/reports";
 
+const DEFAULT_REPORT_API_BASE = "http://consultant:8000";
+
 interface GenericBackendEnvelope {
   code?: number;
   message?: string;
@@ -35,7 +37,7 @@ export async function GET(
   context: { params: Promise<{ reportId: string; sectionKey: string }> },
 ) {
   const { reportId, sectionKey } = await context.params;
-  const reportApiBase = process.env.REPORT_API_BASE_URL;
+  const reportApiBase = process.env.REPORT_API_BASE_URL ?? DEFAULT_REPORT_API_BASE;
 
   const filter1 = request.nextUrl.searchParams.get("filter1") ?? "All";
   const filter2 = request.nextUrl.searchParams.get("filter2") ?? "All";

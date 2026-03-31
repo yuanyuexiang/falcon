@@ -187,6 +187,23 @@ function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
   ];
 }
 
+function isChapterKeyLabel(value: string): boolean {
+  return /^chapter[_-]?\d+$/i.test(value.trim());
+}
+
+function getChapterDisplayTitle(chapter: ReportChapter): string {
+  const chapterTitle = chapter.title?.trim() ?? "";
+  const firstSectionTitle = asArray<ReportSection>(chapter.sections)
+    .map((section) => section.title?.trim() ?? "")
+    .find((title) => title.length > 0);
+
+  if ((chapterTitle.length === 0 || chapterTitle === chapter.chapter_key || isChapterKeyLabel(chapterTitle)) && firstSectionTitle) {
+    return firstSectionTitle;
+  }
+
+  return chapterTitle || chapter.subtitle?.trim() || chapter.chapter_key;
+}
+
 function isLineChart(chart: ReportChart): boolean {
   return chart.chart_type === "line";
 }
@@ -500,7 +517,7 @@ export default function DashboardPage() {
                     onClick={() => handleChapterClick(chapter.chapter_key)}
                   >
                     <BookMarked className="h-4 w-4" />
-                    <span>{chapter.title}</span>
+                    <span>{getChapterDisplayTitle(chapter)}</span>
                   </button>
 
                   <div className="px-2 pb-2">
@@ -523,7 +540,7 @@ export default function DashboardPage() {
                             setActiveSectionKey(section.section_key);
                           }}
                         >
-                          <span>{section.title}</span>
+                          <span>{section.subtitle || section.title}</span>
                           <ChevronRight className={`h-3.5 w-3.5 ${subSelected ? "text-cyan-200" : "text-slate-500"}`} />
                         </button>
                       );
@@ -579,8 +596,8 @@ export default function DashboardPage() {
               {!isLoading && !error && report && activeChapter && displaySection && (
                 <header>
                   <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
-                  <h2 className="mt-1 text-xl font-semibold text-cyan-100">{activeChapter.title}</h2>
-                  <p className="mt-0.5 text-sm text-slate-300">{displaySection.title}</p>
+                  <h2 className="mt-1 text-xl font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
+                  <p className="mt-0.5 text-sm text-slate-300">{displaySection.subtitle || displaySection.title}</p>
 
                   <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
                     <label className="space-y-1 text-xs">

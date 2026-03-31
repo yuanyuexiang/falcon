@@ -69,6 +69,7 @@ services:
 
   consultant:
     container_name: consultant
+    user: "1000:1000"
     image: yuanyuexiang/consultant:v5
     restart: always
     ports:

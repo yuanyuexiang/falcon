@@ -19,9 +19,22 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-function formatDateLabel(value: string | number): string {
+function formatDateLabel(value: string | number, axisType?: string): string {
   if (typeof value === "number") {
-    const date = new Date(value);
+    // Keep numeric category labels (e.g. 1..150) as-is instead of converting to dates.
+    if (axisType === "category") {
+      return String(value);
+    }
+
+    const absValue = Math.abs(value);
+    const isEpochSeconds = absValue >= 946684800 && absValue <= 4102444800;
+    const isEpochMilliseconds = absValue >= 946684800000 && absValue <= 4102444800000;
+
+    if (!isEpochSeconds && !isEpochMilliseconds) {
+      return String(value);
+    }
+
+    const date = new Date(isEpochSeconds ? value * 1000 : value);
 
     if (!Number.isNaN(date.getTime())) {
       const year = String(date.getFullYear()).slice(2);
@@ -302,6 +315,7 @@ function hasTableChartData(chart: ReportChart): boolean {
 
 function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
   if (chart.echarts) {
+    const xAxisType = chart.echarts.xAxis?.type ?? "category";
     const axisData = chart.echarts.xAxis?.data ?? [];
     const series = (chart.echarts.series ?? []).filter((item) => !hiddenSeriesNames?.has(item.name));
 
@@ -334,13 +348,13 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
         bottom: 50,
       },
       xAxis: {
-        type: chart.echarts.xAxis?.type ?? "category",
+        type: xAxisType,
         data: axisData,
         axisLabel: {
           color: "#9bc5ea",
           hideOverlap: true,
           interval: "auto",
-          formatter: (value: string | number) => formatDateLabel(value),
+          formatter: (value: string | number) => formatDateLabel(value, xAxisType),
         },
       },
       yAxis: {
@@ -410,7 +424,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
         color: "#9bc5ea",
         hideOverlap: true,
         interval: "auto",
-        formatter: (value: string | number) => formatDateLabel(value),
+        formatter: (value: string | number) => formatDateLabel(value, "category"),
       },
     },
     yAxis: {

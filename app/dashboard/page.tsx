@@ -504,7 +504,7 @@ export default function DashboardPage() {
   return (
     <main className="terminal-gridline min-h-screen">
       <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
-        <aside className="terminal-shell no-scrollbar w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-60 lg:shrink-0 lg:overflow-y-auto">
+        <aside className="terminal-shell no-scrollbar w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto">
           <div className="terminal-panel mb-6 flex items-center gap-3 rounded-xl px-3 py-3">
             <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2">
               <Building2 className="h-5 w-5 text-cyan-200" />

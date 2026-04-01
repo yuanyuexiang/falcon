@@ -20,7 +20,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`traefik.192.168.86.30.nip.io`)"
+      - "traefik.http.routers.api.rule=Host(`traefik.192.168.3.24.nip.io`)"
       - "traefik.http.routers.api.entrypoints=web"
       - "traefik.http.routers.api.service=api@internal"
     ports:
@@ -32,19 +32,19 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v16
+    image: yuanyuexiang/falcon:v17
     restart: always
     healthcheck:
       disable: true
     environment:
-      - REPORT_API_BASE_URL=http://web.192.168.86.30.nip.io
+      - REPORT_API_BASE_URL=http://web.192.168.3.24.nip.io
     ports:
       - "3000"
     networks:
       - matrix-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.falcon.rule=Host(`web.192.168.86.30.nip.io`)"
+      - "traefik.http.routers.falcon.rule=Host(`web.192.168.3.24.nip.io`)"
       - "traefik.http.routers.falcon.entrypoints=web"
       - "traefik.http.routers.falcon.service=falcon"
       - "traefik.http.services.falcon.loadbalancer.server.port=3000"
@@ -56,13 +56,13 @@ services:
     ports:
       - "3000"
     environment:
-      NEXT_PUBLIC_API_BASE_URL: "http://admin.192.168.86.30.nip.io"
+      NEXT_PUBLIC_API_BASE_URL: "http://admin.192.168.3.24.nip.io"
       NEXT_PUBLIC_API_PREFIX: "/consultant/api"
     networks:
       - matrix-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sentinel.rule=Host(`admin.192.168.86.30.nip.io`)" # 替换为你的域名
+      - "traefik.http.routers.sentinel.rule=Host(`admin.192.168.3.24.nip.io`)" # 替换为你的域名
       - "traefik.http.routers.sentinel.entrypoints=web"
       - "traefik.http.routers.sentinel.service=sentinel"
       - "traefik.http.services.sentinel.loadbalancer.server.port=3000"
@@ -80,7 +80,7 @@ services:
       - matrix-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.consultant.rule=(Host(`web.192.168.86.30.nip.io`) || Host(`admin.192.168.86.30.nip.io`)) && PathPrefix(`/consultant`)" # 替换为你的域名
+      - "traefik.http.routers.consultant.rule=(Host(`web.192.168.3.24.nip.io`) || Host(`admin.192.168.3.24.nip.io`)) && PathPrefix(`/consultant`)" # 替换为你的域名
       - "traefik.http.routers.consultant.entrypoints=web"
       - "traefik.http.routers.consultant.service=consultant"
       - "traefik.http.services.consultant.loadbalancer.server.port=8000"

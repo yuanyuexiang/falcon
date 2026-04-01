@@ -44,13 +44,14 @@ export async function fetchReports(): Promise<ReportListItem[]> {
 
 export async function getSectionDetail(
   reportKey: string,
+  chapterKey: string,
   sectionKey: string,
   filters: SectionFilterParams,
 ): Promise<ReportSection> {
   const params = new URLSearchParams();
   params.set("filter1", filters.filter1 ?? "All");
   params.set("filter2", filters.filter2 ?? "All");
-  const url = `/api/reports/${reportKey}/sections/${sectionKey}?${params.toString()}`;
+  const url = `/api/reports/${reportKey}/chapters/${chapterKey}/sections/${sectionKey}?${params.toString()}`;
 
   const response = await fetch(url, {
     method: "GET",

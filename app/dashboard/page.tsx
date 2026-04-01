@@ -192,6 +192,15 @@ function isChapterKeyLabel(value: string): boolean {
 }
 
 function getChapterDisplayTitle(chapter: ReportChapter): string {
+  const chapterNameFromSection = asArray<ReportSection>(chapter.sections)
+    .map((section) => section.chapter_name?.trim() ?? "")
+    .find((name) => name.length > 0);
+  const chapterName = chapter.chapter_name?.trim() ?? chapterNameFromSection ?? "";
+
+  if (chapterName.length > 0) {
+    return chapterName;
+  }
+
   const chapterTitle = chapter.title?.trim() ?? "";
   const firstSectionTitle = asArray<ReportSection>(chapter.sections)
     .map((section) => section.title?.trim() ?? "")
@@ -202,6 +211,10 @@ function getChapterDisplayTitle(chapter: ReportChapter): string {
   }
 
   return chapterTitle || chapter.subtitle?.trim() || chapter.chapter_key;
+}
+
+function getSectionDisplayTitle(section: ReportSection): string {
+  return section.section_name?.trim() || section.subtitle?.trim() || section.title?.trim() || section.section_key;
 }
 
 function isLineChart(chart: ReportChart): boolean {
@@ -396,12 +409,13 @@ export default function DashboardPage() {
     error: sectionFilterError,
   } = useSectionDetailQuery(
     reportId,
+    activeSection?.chapter_key ?? activeChapterKey,
     activeSectionKey,
     {
       filter1: selectedFilter1,
       filter2: selectedFilter2,
     },
-    Boolean(reportId && activeSectionKey && activeSection),
+    Boolean(reportId && (activeSection?.chapter_key ?? activeChapterKey) && activeSectionKey && activeSection),
   );
 
   const displaySection = filteredSection ?? activeSection;
@@ -540,7 +554,7 @@ export default function DashboardPage() {
                             setActiveSectionKey(section.section_key);
                           }}
                         >
-                          <span>{section.subtitle || section.title}</span>
+                            <span>{getSectionDisplayTitle(section)}</span>
                           <ChevronRight className={`h-3.5 w-3.5 ${subSelected ? "text-cyan-200" : "text-slate-500"}`} />
                         </button>
                       );
@@ -597,7 +611,7 @@ export default function DashboardPage() {
                 <header>
                   <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
                   <h2 className="mt-1 text-xl font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
-                  <p className="mt-0.5 text-sm text-slate-300">{displaySection.subtitle || displaySection.title}</p>
+                  <p className="mt-0.5 text-sm text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
 
                   <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
                     <label className="space-y-1 text-xs">

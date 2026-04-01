@@ -32,10 +32,12 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v5
+    image: yuanyuexiang/falcon:v17
     restart: always
     healthcheck:
       disable: true
+    environment:
+      - REPORT_API_BASE_URL=http://web.10.140.208.14.nip.io
     ports:
       - "3000:3000"
     networks:
@@ -49,13 +51,13 @@ services:
 
   sentinel:
     container_name: sentinel
-    image: yuanyuexiang/sentinel:v5
+    image: yuanyuexiang/sentinel:v9
     restart: always
     ports:
       - "3000"
     environment:
-      - APP_ENV=development
-      - DEBUG=true
+      NEXT_PUBLIC_API_BASE_URL: "http://admin.10.140.208.14.nip.io"
+      NEXT_PUBLIC_API_PREFIX: "/consultant/api"
     networks:
       - matrix-network
     labels:
@@ -67,26 +69,21 @@ services:
 
   consultant:
     container_name: consultant
+    user: "1000:1000"
     image: yuanyuexiang/consultant:v5
     restart: always
     ports:
       - "8000"
-    environment:
-      - APP_ENV=development
-      - DEBUG=true
     volumes:
-      - ./consultant:/app/runtime
+      - ./data/consultant:/app/runtime
     networks:
       - matrix-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.consultant-web.rule=Host(`web.10.140.208.14.nip.io`) && PathPrefix(`/consultant`)" # 替换为你的域名
-      - "traefik.http.routers.consultant-web.entrypoints=web"
-      - "traefik.http.routers.consultant-web.service=consultant"
-      - "traefik.http.routers.consultant-admin.rule=Host(`admin.10.140.208.14.nip.io`) && PathPrefix(`/consultant`)" # 替换为你的域名
-      - "traefik.http.routers.consultant-admin.entrypoints=web"
-      - "traefik.http.routers.consultant-admin.service=consultant"
-      - "traefik.http.services.consultant.loadbalancer.server.port=3000"
+      - "traefik.http.routers.consultant.rule=(Host(`web.10.140.208.14.nip.io`) || Host(`admin.10.140.208.14.nip.io`)) && PathPrefix(`/consultant`)" # 替换为你的域名
+      - "traefik.http.routers.consultant.entrypoints=web"
+      - "traefik.http.routers.consultant.service=consultant"
+      - "traefik.http.services.consultant.loadbalancer.server.port=8000"
 
 networks:
   matrix-network:

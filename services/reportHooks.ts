@@ -7,6 +7,7 @@ import type { ReportSection, SectionFilterParams } from "@/types/reports";
 
 export function useSectionDetailQuery(
   reportKey: string,
+  chapterKey: string,
   sectionKey: string,
   filters: SectionFilterParams,
   enabled: boolean,
@@ -15,11 +16,12 @@ export function useSectionDetailQuery(
     queryKey: [
       "section-detail",
       reportKey,
+      chapterKey,
       sectionKey,
       filters.filter1 ?? "All",
       filters.filter2 ?? "All",
     ],
-    queryFn: () => getSectionDetail(reportKey, sectionKey, filters),
+    queryFn: () => getSectionDetail(reportKey, chapterKey, sectionKey, filters),
     enabled,
     staleTime: 15_000,
   });

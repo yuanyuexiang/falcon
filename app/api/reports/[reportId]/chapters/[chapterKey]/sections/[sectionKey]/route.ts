@@ -34,23 +34,13 @@ function normalizeSection(payload: GenericBackendEnvelope): ReportSection | null
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ reportId: string; sectionKey: string }> },
+  context: { params: Promise<{ reportId: string; chapterKey: string; sectionKey: string }> },
 ) {
-  const { reportId, sectionKey } = await context.params;
+  const { reportId, chapterKey, sectionKey } = await context.params;
   const reportApiBase = process.env.REPORT_API_BASE_URL ?? DEFAULT_REPORT_API_BASE;
-  const chapterKey = request.nextUrl.searchParams.get("chapter_key") ?? "";
 
   const filter1 = request.nextUrl.searchParams.get("filter1") ?? "All";
   const filter2 = request.nextUrl.searchParams.get("filter2") ?? "All";
-
-  if (!chapterKey) {
-    return NextResponse.json(
-      {
-        message: "Missing required query param: chapter_key",
-      },
-      { status: 400 },
-    );
-  }
 
   const upstreamUrl = new URL(
     `/consultant/api/v1/reports/${reportId}/chapters/${chapterKey}/sections/${sectionKey}`,

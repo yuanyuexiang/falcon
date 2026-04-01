@@ -95,6 +95,8 @@ export interface ReportSection {
   id?: string;
   section_key: string;
   chapter_key?: string;
+  chapter_name?: string | null;
+  section_name?: string | null;
   title: string;
   subtitle: string | null;
   status: string;
@@ -110,6 +112,7 @@ export interface ReportSection {
 
 export interface ReportChapter {
   chapter_key: string;
+  chapter_name?: string | null;
   title: string;
   subtitle: string | null;
   order: number;

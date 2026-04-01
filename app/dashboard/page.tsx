@@ -504,7 +504,7 @@ export default function DashboardPage() {
   return (
     <main className="terminal-gridline min-h-screen">
       <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
-        <aside className="terminal-shell w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-60 lg:shrink-0 lg:overflow-y-auto">
+        <aside className="terminal-shell no-scrollbar w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-60 lg:shrink-0 lg:overflow-y-auto">
           <div className="terminal-panel mb-6 flex items-center gap-3 rounded-xl px-3 py-3">
             <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2">
               <Building2 className="h-5 w-5 text-cyan-200" />
@@ -571,7 +571,7 @@ export default function DashboardPage() {
         </aside>
 
         <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:min-h-0 lg:min-w-0">
-          <div className="terminal-shell rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
+          <div className="terminal-shell no-scrollbar rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
             <div className="sticky top-0 z-20 -mx-1 mb-3 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-3 backdrop-blur-sm">
               <div className="terminal-ticker mb-2 rounded-lg py-1.5 text-[11px] text-slate-200">
                 <div className="terminal-ticker-track">

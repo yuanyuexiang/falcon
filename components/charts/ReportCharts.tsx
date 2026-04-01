@@ -55,6 +55,10 @@ function formatDateLabel(value: string | number, axisType?: string): string {
     return `${year.slice(2)}-${month}`;
   }
 
+  if (axisType === "category" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
+    return value;
+  }
+
   const parsed = new Date(value);
 
   if (!Number.isNaN(parsed.getTime())) {

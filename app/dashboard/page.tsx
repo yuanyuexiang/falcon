@@ -609,68 +609,70 @@ export default function DashboardPage() {
 
               {!isLoading && !error && report && activeChapter && displaySection && (
                 <header className="space-y-1.5">
-                  <div className="min-w-0">
-                    <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
-                    <h2 className="mt-0.5 truncate text-lg font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
-                    <p className="mt-0 truncate text-xs text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
-                  </div>
+                  <div className="grid gap-1.5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-center">
+                    <div className="min-w-0">
+                      <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
+                      <h2 className="mt-0.5 truncate text-lg font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
+                      <p className="mt-0 truncate text-xs text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
+                    </div>
 
-                  <div className="mt-1.5 grid gap-1.5 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
-                    <label className="space-y-1 text-xs">
-                      <span className="block text-slate-400">Filter 1</span>
-                      <select
-                        value={selectedFilter1}
-                        onChange={(event) => {
-                          const nextFilter1 = event.target.value;
-                          setSelectedFilter1(nextFilter1);
-                          setSelectedFilter2(ALL_FILTER);
-                        }}
-                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
-                      >
-                        <option value={ALL_FILTER}>{ALL_FILTER}</option>
-                        {sectionFilterOptions.filter1Values.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <div className="terminal-panel rounded-lg px-2 py-1.5">
+                      <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
+                        <label className="flex items-center gap-1 text-xs">
+                          <span className="whitespace-nowrap text-slate-400">Filter 1</span>
+                          <select
+                            value={selectedFilter1}
+                            onChange={(event) => {
+                              const nextFilter1 = event.target.value;
+                              setSelectedFilter1(nextFilter1);
+                              setSelectedFilter2(ALL_FILTER);
+                            }}
+                            className="min-w-0 flex-1 rounded-md border border-cyan-500/25 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
+                          >
+                            <option value={ALL_FILTER}>{ALL_FILTER}</option>
+                            {sectionFilterOptions.filter1Values.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
 
-                    <label className="space-y-1 text-xs">
-                      <span className="block text-slate-400">Filter 2</span>
-                      <select
-                        value={selectedFilter2}
-                        onChange={(event) => {
-                          setSelectedFilter2(event.target.value);
-                        }}
-                        className="w-full rounded-md border border-cyan-500/25 bg-slate-950/60 px-2.5 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
-                      >
-                        <option value={ALL_FILTER}>{ALL_FILTER}</option>
-                        {filter2Candidates.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        <label className="flex items-center gap-1 text-xs">
+                          <span className="whitespace-nowrap text-slate-400">Filter 2</span>
+                          <select
+                            value={selectedFilter2}
+                            onChange={(event) => {
+                              setSelectedFilter2(event.target.value);
+                            }}
+                            className="min-w-0 flex-1 rounded-md border border-cyan-500/25 bg-slate-950/60 px-2 py-1 text-xs text-slate-100 outline-none transition focus:border-cyan-300"
+                          >
+                            <option value={ALL_FILTER}>{ALL_FILTER}</option>
+                            {filter2Candidates.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
 
-                    <div className="flex flex-wrap items-center gap-1.5 pb-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedFilter1(ALL_FILTER);
-                          setSelectedFilter2(ALL_FILTER);
-                        }}
-                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-2 py-1 text-[11px] font-medium text-cyan-100 transition hover:bg-cyan-500/20"
-                      >
-                        Reset Filters
-                      </button>
-                      {typeof filteredSection?.meta?.filtered_rows_count === "number" && (
-                        <p className="text-[11px] text-slate-400">
-                          Rows: {filteredSection.meta.filtered_rows_count}
-                        </p>
-                      )}
-                      {isSectionFiltering && <p className="text-[11px] text-cyan-200">Updating...</p>}
+                        <div className="flex flex-wrap items-center gap-1 sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFilter1(ALL_FILTER);
+                              setSelectedFilter2(ALL_FILTER);
+                            }}
+                            className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-2 py-1 text-[11px] font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                          >
+                            Reset Filters
+                          </button>
+                          {typeof filteredSection?.meta?.filtered_rows_count === "number" && (
+                            <p className="text-[11px] text-slate-400">Rows: {filteredSection.meta.filtered_rows_count}</p>
+                          )}
+                          {isSectionFiltering && <p className="text-[11px] text-cyan-200">Updating...</p>}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

@@ -178,13 +178,6 @@ function isTableChart(chart: ReportChart): boolean {
   return normalizedType === "table" || normalizedType === "table_data" || normalizeTablePayload(chart) !== null;
 }
 
-type TrendDirection = "up" | "down" | "flat";
-
-interface TrendInfo {
-  direction: TrendDirection;
-  changePct: number;
-}
-
 function extractNumericPointValue(point: unknown): number | null {
   if (typeof point === "number" && Number.isFinite(point)) {
     return point;
@@ -213,77 +206,6 @@ function extractNumericPointValue(point: unknown): number | null {
   }
 
   return null;
-}
-
-function deriveTrend(values: unknown[]): TrendInfo {
-  const normalized = values
-    .map((value) => extractNumericPointValue(value))
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-
-  if (normalized.length < 2) {
-    return { direction: "flat", changePct: 0 };
-  }
-
-  const first = normalized[0];
-  const last = normalized[normalized.length - 1];
-  const delta = last - first;
-
-  if (first === 0) {
-    return {
-      direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat",
-      changePct: 0,
-    };
-  }
-
-  const changePct = (delta / Math.abs(first)) * 100;
-
-  if (Math.abs(changePct) < 0.01) {
-    return { direction: "flat", changePct: 0 };
-  }
-
-  return {
-    direction: changePct > 0 ? "up" : "down",
-    changePct,
-  };
-}
-
-function getChartTrend(chart: ReportChart): TrendInfo {
-  if (chart.echarts?.series && chart.echarts.series.length > 0) {
-    const primarySeries = chart.echarts.series[0];
-    return deriveTrend(primarySeries.data ?? []);
-  }
-
-  if (chart.data) {
-    const lineData = normalizeLineChartData(chart.data);
-    const primaryDataset = lineData.datasets[0];
-    return deriveTrend(primaryDataset?.data ?? []);
-  }
-
-  return { direction: "flat", changePct: 0 };
-}
-
-function trendStyles(direction: TrendDirection): string {
-  if (direction === "up") {
-    return "bg-emerald-500/20 text-emerald-200 border border-emerald-400/35";
-  }
-
-  if (direction === "down") {
-    return "bg-red-500/20 text-red-200 border border-red-400/35";
-  }
-
-  return "bg-slate-500/20 text-slate-200 border border-slate-400/35";
-}
-
-function trendLabel(direction: TrendDirection): string {
-  if (direction === "up") {
-    return "UP";
-  }
-
-  if (direction === "down") {
-    return "DOWN";
-  }
-
-  return "FLAT";
 }
 
 function hasLineChartData(chart: ReportChart): boolean {
@@ -745,21 +667,10 @@ export function ReportSectionCharts({
             );
           }
 
-          const trend = getChartTrend(chart);
-
           return (
             <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 shadow-sm">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <h4 className="text-sm font-semibold text-cyan-100">{chart.title}</h4>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
-                    LIVE SNAPSHOT
-                  </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${trendStyles(trend.direction)}`}>
-                    {trendLabel(trend.direction)} {trend.changePct >= 0 ? "+" : ""}
-                    {trend.changePct.toFixed(2)}%
-                  </span>
-                </div>
               </div>
               <ReactECharts
                 option={buildLineOption(chart, !useSharedLegend, effectiveHiddenSeriesNames)}

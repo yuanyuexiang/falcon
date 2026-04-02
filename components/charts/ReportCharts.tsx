@@ -240,6 +240,9 @@ function hasTableChartData(chart: ReportChart): boolean {
 }
 
 function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
+  const gridTop = showLegend ? 44 : 26;
+  const gridBottom = 32;
+
   if (chart.echarts) {
     const xAxisType = chart.echarts.xAxis?.type ?? "category";
     const axisData = chart.echarts.xAxis?.data ?? [];
@@ -268,10 +271,10 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
         },
       },
       grid: {
-        top: 56,
+        top: gridTop,
         left: 54,
         right: 20,
-        bottom: 50,
+        bottom: gridBottom,
       },
       xAxis: {
         type: xAxisType,
@@ -338,10 +341,10 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
       },
     },
     grid: {
-      top: 56,
+      top: gridTop,
       left: 54,
       right: 20,
-      bottom: 50,
+      bottom: gridBottom,
     },
     xAxis: {
       type: "category",
@@ -668,14 +671,14 @@ export function ReportSectionCharts({
           }
 
           return (
-            <div key={chart.chart_id} className="terminal-panel rounded-xl p-5 shadow-sm">
-              <div className="mb-3 flex items-start justify-between gap-3">
+            <div key={chart.chart_id} className="terminal-panel rounded-xl p-4 shadow-sm">
+              <div className="mb-2 flex items-start justify-between gap-3">
                 <h4 className="text-sm font-semibold text-cyan-100">{chart.title}</h4>
               </div>
               <ReactECharts
                 option={buildLineOption(chart, !useSharedLegend, effectiveHiddenSeriesNames)}
                 notMerge
-                style={{ width: "100%", height: "340px" }}
+                style={{ width: "100%", height: "300px" }}
               />
             </div>
           );

@@ -578,7 +578,7 @@ export default function DashboardPage() {
         </aside>
 
         <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:min-h-0 lg:min-w-0">
-          <div className="terminal-shell no-scrollbar rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
+          <div className="terminal-shell no-scrollbar rounded-2xl px-6 pb-6 pt-0 sm:px-7 sm:pb-7 sm:pt-0 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
             <div className="sticky top-0 z-20 -mx-1 mb-2 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-2 backdrop-blur-sm">
               <div className="terminal-ticker mb-1.5 rounded-lg py-1 text-[10px] text-slate-200">
                 <div className="terminal-ticker-track">

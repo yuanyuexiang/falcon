@@ -32,7 +32,7 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v18
+    image: yuanyuexiang/falcon:v19
     restart: always
     healthcheck:
       disable: true

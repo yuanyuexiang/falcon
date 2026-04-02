@@ -505,13 +505,20 @@ export default function DashboardPage() {
     <main className="terminal-gridline min-h-screen">
       <div className="mx-auto flex max-w-[1680px] flex-col p-4 sm:p-6 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-8">
         <aside className="terminal-shell no-scrollbar w-full rounded-2xl p-5 text-slate-100 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto">
-          <div className="terminal-panel mb-6 flex items-center gap-3 rounded-xl px-3 py-3">
+          <div className="terminal-panel mb-6 rounded-xl px-3 py-3">
+            <div className="flex items-center gap-3">
             <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2">
               <Building2 className="h-5 w-5 text-cyan-200" />
             </div>
             <div>
               <p className="terminal-kicker text-xs uppercase">Falcon</p>
               <h1 className="text-sm font-semibold tracking-wide text-cyan-100">BI Report</h1>
+            </div>
+            </div>
+            <div className="mt-3 border-t border-cyan-500/20 pt-2">
+              <Link href="/reports" className="text-xs font-medium text-cyan-300 transition hover:text-cyan-100">
+                Back to Reports
+              </Link>
             </div>
           </div>
 
@@ -572,8 +579,8 @@ export default function DashboardPage() {
 
         <section className="mt-4 flex-1 lg:mt-0 lg:ml-6 lg:h-full lg:min-h-0 lg:min-w-0">
           <div className="terminal-shell no-scrollbar rounded-2xl p-6 sm:p-7 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-x-hidden lg:overflow-y-auto">
-            <div className="sticky top-0 z-20 -mx-1 mb-3 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-3 backdrop-blur-sm">
-              <div className="terminal-ticker mb-2 rounded-lg py-1.5 text-[11px] text-slate-200">
+            <div className="sticky top-0 z-20 -mx-1 mb-2 border-b border-cyan-500/20 bg-[linear-gradient(165deg,rgba(10,16,32,0.96),rgba(8,13,26,0.96))] px-1 pb-2 backdrop-blur-sm">
+              <div className="terminal-ticker mb-1.5 rounded-lg py-1 text-[10px] text-slate-200">
                 <div className="terminal-ticker-track">
                   <div className="flex items-center gap-6 px-4">
                     <span className="inline-flex items-center gap-2">
@@ -600,20 +607,15 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mb-3 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-2">
-                <p className="terminal-kicker text-xs font-medium uppercase">Report ID: {reportId}</p>
-                <Link href="/reports" className="text-xs font-medium text-cyan-300 transition hover:text-cyan-100">
-                  Back to Reports
-                </Link>
-              </div>
-
               {!isLoading && !error && report && activeChapter && displaySection && (
-                <header>
-                  <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
-                  <h2 className="mt-1 text-xl font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
-                  <p className="mt-0.5 text-sm text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
+                <header className="space-y-1.5">
+                  <div className="min-w-0">
+                    <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
+                    <h2 className="mt-0.5 truncate text-lg font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
+                    <p className="mt-0 truncate text-xs text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
+                  </div>
 
-                  <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
+                  <div className="mt-1.5 grid gap-1.5 lg:grid-cols-[minmax(0,210px)_minmax(0,210px)_auto] lg:items-end">
                     <label className="space-y-1 text-xs">
                       <span className="block text-slate-400">Filter 1</span>
                       <select
@@ -652,20 +654,17 @@ export default function DashboardPage() {
                       </select>
                     </label>
 
-                    <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5 pb-0">
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedFilter1(ALL_FILTER);
                           setSelectedFilter2(ALL_FILTER);
                         }}
-                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                        className="rounded-md border border-cyan-400/35 bg-cyan-500/10 px-2 py-1 text-[11px] font-medium text-cyan-100 transition hover:bg-cyan-500/20"
                       >
                         Reset Filters
                       </button>
-                      <p className="text-[11px] text-slate-400">
-                        Current: filter1={selectedFilter1}, filter2={selectedFilter2}
-                      </p>
                       {typeof filteredSection?.meta?.filtered_rows_count === "number" && (
                         <p className="text-[11px] text-slate-400">
                           Rows: {filteredSection.meta.filtered_rows_count}
@@ -676,21 +675,21 @@ export default function DashboardPage() {
                   </div>
 
                   {useSharedLegend && (
-                    <div className="terminal-panel mt-2 rounded-lg px-3 py-2">
-                      <div className="mb-1 flex items-center justify-between gap-2">
+                    <div className="terminal-panel mt-1.5 rounded-lg px-2.5 py-1.5">
+                      <div className="mb-0.5 flex items-center justify-between gap-2">
                         <p className="text-[11px] uppercase tracking-wide text-slate-400">Shared Legend</p>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={selectAllSharedLegendItems}
-                            className="rounded border border-cyan-400/35 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100 transition hover:bg-cyan-500/20"
+                            className="rounded border border-cyan-400/35 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] text-cyan-100 transition hover:bg-cyan-500/20"
                           >
                             Select All
                           </button>
                           <button
                             type="button"
                             onClick={invertSharedLegendItems}
-                            className="rounded border border-slate-500/40 bg-slate-700/30 px-2 py-0.5 text-[11px] text-slate-200 transition hover:bg-slate-700/45"
+                            className="rounded border border-slate-500/40 bg-slate-700/30 px-1.5 py-0.5 text-[10px] text-slate-200 transition hover:bg-slate-700/45"
                           >
                             Invert
                           </button>

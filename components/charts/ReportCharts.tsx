@@ -19,6 +19,13 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function toFullDateLabel(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatDateLabel(value: string | number, axisType?: string): string {
   if (typeof value === "number") {
     // Keep numeric category labels (e.g. 1..150) as-is instead of converting to dates.
@@ -37,22 +44,18 @@ function formatDateLabel(value: string | number, axisType?: string): string {
     const date = new Date(isEpochSeconds ? value * 1000 : value);
 
     if (!Number.isNaN(date.getTime())) {
-      const year = String(date.getFullYear()).slice(2);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      return `${year}-${month}`;
+      return toFullDateLabel(date);
     }
 
     return String(value);
   }
 
   if (/^\d{4}-\d{2}$/.test(value)) {
-    const [year, month] = value.split("-");
-    return `${year.slice(2)}-${month}`;
+    return `${value}-01`;
   }
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const [year, month] = value.split("-");
-    return `${year.slice(2)}-${month}`;
+    return value.slice(0, 10);
   }
 
   if (axisType === "category" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
@@ -62,9 +65,7 @@ function formatDateLabel(value: string | number, axisType?: string): string {
   const parsed = new Date(value);
 
   if (!Number.isNaN(parsed.getTime())) {
-    const year = String(parsed.getFullYear()).slice(2);
-    const month = String(parsed.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}`;
+    return toFullDateLabel(parsed);
   }
 
   return value;
@@ -291,6 +292,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
         name: chart.echarts.yAxis?.name ?? "Value",
         min: chart.echarts.yAxis?.min,
         max: chart.echarts.yAxis?.max,
+        scale: true,
         axisLabel: {
           color: "#9bc5ea",
           formatter: (value: number) => formatAxisNumber(value),
@@ -361,6 +363,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
       name: chart.config?.y_axis_label ?? "Value",
       min: minMax?.[0],
       max: minMax?.[1],
+      scale: true,
       axisLabel: {
         color: "#9bc5ea",
         formatter: (value: number) => formatAxisNumber(value),

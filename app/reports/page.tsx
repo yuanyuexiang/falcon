@@ -129,15 +129,15 @@ export default function ReportsPage() {
         )}
 
         {!isLoading && !error && groupedReports.length > 0 && (
-          <section className="space-y-5">
+          <section className="space-y-4">
             {groupedReports.map(({ type, items }) => (
-              <div key={type} className="terminal-shell rounded-2xl p-4 sm:p-5">
-                <div className="mb-3 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">Type: {type}</h2>
+              <div key={type} className="terminal-shell rounded-2xl p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-1.5">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">{type}</h2>
                   <span className="text-xs text-slate-400">{items.length} report{items.length > 1 ? "s" : ""}</span>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                   {items.map((report) => {
                     const cardKey = `${report.report_key}-${report.id}`;
 
@@ -145,14 +145,14 @@ export default function ReportsPage() {
                       <Link
                         key={cardKey}
                         href={`/dashboard?reportId=${encodeURIComponent(report.report_key)}`}
-                        className="terminal-panel group rounded-2xl p-5 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-[0_0_30px_rgba(0,183,255,0.22)]"
+                        className="terminal-panel group rounded-xl p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-[0_0_24px_rgba(0,183,255,0.2)]"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/15 p-2 text-cyan-200">
-                            <FileBarChart2 className="h-5 w-5" />
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/15 p-1.5 text-cyan-200">
+                            <FileBarChart2 className="h-4 w-4" />
                           </div>
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                               STATUS_STYLES[report.status] ?? "bg-slate-500/20 text-slate-200"
                             }`}
                           >
@@ -160,16 +160,16 @@ export default function ReportsPage() {
                           </span>
                         </div>
 
-                        <h3 className="mt-4 line-clamp-2 text-lg font-semibold text-cyan-100">{report.name}</h3>
+                        <h3 className="mt-2.5 line-clamp-2 text-base font-semibold text-cyan-100">{report.name}</h3>
 
-                        <div className="mt-3 space-y-1 text-sm text-slate-300">
+                        <div className="mt-2 space-y-0.5 text-xs text-slate-300">
                           <p>Report Key: {report.report_key}</p>
                           <p>Type: {report.type}</p>
                         </div>
 
-                        <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-cyan-300 transition group-hover:gap-2">
+                        <div className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-cyan-300 transition group-hover:gap-2">
                           View Report
-                          <ArrowRight className="h-4 w-4" />
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </div>
                       </Link>
                     );

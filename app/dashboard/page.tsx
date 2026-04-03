@@ -421,7 +421,9 @@ export default function DashboardPage() {
   const displaySection = filteredSection ?? activeSection;
   const sharedLegendItems = useMemo(() => extractSharedLegendItems(displaySection), [displaySection]);
   const useSharedLegend = sharedLegendItems.length > 0;
-  const [sharedLegendSelection, setSharedLegendSelection] = useState<Record<string, boolean>>({});
+  const [sharedLegendSelectionBySection, setSharedLegendSelectionBySection] = useState<Record<string, Record<string, boolean>>>({});
+  const sectionLegendScope = `${reportId}:${displaySection?.section_key ?? activeSectionKey ?? ""}`;
+  const sharedLegendSelection = sharedLegendSelectionBySection[sectionLegendScope] ?? {};
 
   const visibleSharedLegendCount = useMemo(() => {
     return sharedLegendItems.filter((item) => sharedLegendSelection[item.label] ?? true).length;
@@ -440,56 +442,70 @@ export default function DashboardPage() {
   }, [sharedLegendItems, sharedLegendSelection, useSharedLegend]);
 
   const toggleSharedLegendItem = (label: string) => {
-    setSharedLegendSelection((previous) => {
+    setSharedLegendSelectionBySection((previousBySection) => {
+      const previous = previousBySection[sectionLegendScope] ?? {};
       const isVisible = previous[label] ?? true;
 
       if (isVisible) {
         const visibleCount = sharedLegendItems.filter((item) => previous[item.label] ?? true).length;
         if (visibleCount <= 1) {
-          return previous;
+          return previousBySection;
         }
       }
 
       return {
-        ...previous,
-        [label]: !isVisible,
+        ...previousBySection,
+        [sectionLegendScope]: {
+          ...previous,
+          [label]: !isVisible,
+        },
       };
     });
   };
 
   const isolateSharedLegendItem = (label: string) => {
-    setSharedLegendSelection(() => {
+    setSharedLegendSelectionBySection((previousBySection) => {
       const nextSelection: Record<string, boolean> = {};
 
       sharedLegendItems.forEach((item) => {
         nextSelection[item.label] = item.label === label;
       });
 
-      return nextSelection;
+      return {
+        ...previousBySection,
+        [sectionLegendScope]: nextSelection,
+      };
     });
   };
 
   const selectAllSharedLegendItems = () => {
-    setSharedLegendSelection(() => {
+    setSharedLegendSelectionBySection((previousBySection) => {
       const nextSelection: Record<string, boolean> = {};
 
       sharedLegendItems.forEach((item) => {
         nextSelection[item.label] = true;
       });
 
-      return nextSelection;
+      return {
+        ...previousBySection,
+        [sectionLegendScope]: nextSelection,
+      };
     });
   };
 
   const invertSharedLegendItems = () => {
-    setSharedLegendSelection((previous) => {
+    setSharedLegendSelectionBySection((previousBySection) => {
+      const previous = previousBySection[sectionLegendScope] ?? {};
       const nextSelection: Record<string, boolean> = {};
 
       sharedLegendItems.forEach((item) => {
         nextSelection[item.label] = !(previous[item.label] ?? true);
       });
 
-      return nextSelection;
+      return {
+        ...previousBySection,
+        [sectionLegendScope]: nextSelection,
+      };
     });
   };
 

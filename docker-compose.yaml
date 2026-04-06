@@ -6,7 +6,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     environment:
-      TZ: Asia/Shanghai
+      TZ: America/Los_Angeles
     command:
       - "--log.level=DEBUG"
       - "--api.insecure=false"
@@ -32,7 +32,7 @@ services:
 
   falcon:
     container_name: falcon
-    image: yuanyuexiang/falcon:v19
+    image: auricintelligence/falcon:v20
     restart: always
     healthcheck:
       disable: true
@@ -51,7 +51,7 @@ services:
 
   sentinel:
     container_name: sentinel
-    image: yuanyuexiang/sentinel:v10
+    image: auricintelligence/sentinel:v10
     restart: always
     ports:
       - "3000"
@@ -70,7 +70,7 @@ services:
   consultant:
     container_name: consultant
     user: "1000:1000"
-    image: yuanyuexiang/consultant:v6
+    image: auricintelligence/consultant:v6
     restart: always
     ports:
       - "8000"

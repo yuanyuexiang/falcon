@@ -38,4 +38,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 DATABASE_URL="postgresql+asyncpg://postgres:squirrel_canon_20260101@117.72.204.201:5432/canon" 
 
-docker buildx build --platform linux/amd64,linux/arm64 -t yuanyuexiang/falcon:v2 .
+docker buildx build --platform linux/amd64,linux/arm64 -t auricintelligence/falcon:v20 .

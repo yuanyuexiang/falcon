@@ -429,6 +429,31 @@ function applySeriesVisibility(
   };
 }
 
+function isNumericLikeValue(value: unknown): boolean {
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return false;
+    }
+    return /^-?\d+(\.\d+)?$/.test(trimmed);
+  }
+
+  return false;
+}
+
+function shouldForceEvenMobTicks(axisType: string, axisData: unknown): boolean {
+  if (axisType !== "category" || !Array.isArray(axisData) || axisData.length < 10) {
+    return false;
+  }
+
+  const numericCount = axisData.filter((item) => isNumericLikeValue(item)).length;
+  return numericCount / axisData.length >= 0.9;
+}
+
 function withFalconLineDefaults(
   option: Record<string, unknown>,
   showLegend: boolean,
@@ -441,6 +466,8 @@ function withFalconLineDefaults(
   const xAxis = asRecord(option.xAxis) ?? {};
   const yAxis = asRecord(option.yAxis) ?? {};
   const xAxisType = typeof xAxis.type === "string" ? xAxis.type : "category";
+  const xAxisData = Array.isArray(xAxis.data) ? xAxis.data : [];
+  const forceEvenMobTicks = shouldForceEvenMobTicks(xAxisType, xAxisData);
 
   return {
     ...option,
@@ -480,10 +507,16 @@ function withFalconLineDefaults(
       type: xAxisType,
       axisLabel: {
         color: "#9bc5ea",
-        hideOverlap: true,
-        interval: "auto",
+        hideOverlap: forceEvenMobTicks ? false : true,
+        interval: forceEvenMobTicks ? ((index: number) => index % 3 === 0) : "auto",
         formatter: (value: string | number) => formatDateLabel(value, xAxisType),
         ...(asRecord(xAxis.axisLabel) ?? {}),
+        ...(forceEvenMobTicks
+          ? {
+              hideOverlap: false,
+              interval: (index: number) => index % 3 === 0,
+            }
+          : {}),
       },
     },
     yAxis: {
@@ -518,6 +551,7 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
   const data = normalizeLineChartData(chart.data);
   const minMax = chart.config?.y_axis_range;
   const visibleDatasets = data.datasets.filter((item) => !hiddenSeriesNames?.has(item.label));
+  const forceEvenMobTicks = shouldForceEvenMobTicks("category", data.labels);
 
   return {
     color: CHART_COLORS,
@@ -552,8 +586,8 @@ function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenS
       data: data.labels,
       axisLabel: {
         color: "#9bc5ea",
-        hideOverlap: true,
-        interval: "auto",
+        hideOverlap: forceEvenMobTicks ? false : true,
+        interval: forceEvenMobTicks ? ((index: number) => index % 3 === 0) : "auto",
         formatter: (value: string | number) => formatDateLabel(value, "category"),
       },
     },

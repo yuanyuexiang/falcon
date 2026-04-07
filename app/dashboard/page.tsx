@@ -625,14 +625,14 @@ export default function DashboardPage() {
 
               {!isLoading && !error && report && activeChapter && displaySection && (
                 <header className="space-y-1.5">
-                  <div className="grid gap-1.5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-center">
+                  <div className="grid gap-1.5 lg:grid-cols-[minmax(0,2fr)_minmax(420px,1fr)] lg:items-center">
                     <div className="min-w-0">
                       <p className="terminal-kicker text-xs font-medium uppercase">{report.name}</p>
                       <h2 className="mt-0.5 truncate text-lg font-semibold text-cyan-100">{getChapterDisplayTitle(activeChapter)}</h2>
                       <p className="mt-0 truncate text-xs text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
                     </div>
 
-                    <div className="terminal-panel w-full rounded-lg px-2 py-1.5 lg:ml-auto lg:w-1/2">
+                    <div className="terminal-panel w-full rounded-lg px-2 py-1.5 lg:ml-auto lg:w-full">
                       <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
                         <label className="flex items-center gap-1 text-xs">
                           <span className="whitespace-nowrap text-slate-400">Filter 1</span>

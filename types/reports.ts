@@ -35,6 +35,20 @@ export interface TableColumn {
 export interface TableObjectData {
   columns: TableColumn[];
   rows: Array<Record<string, string | number | null>>;
+  presentation?: {
+    cell_styles?: Array<{
+      row_index: number;
+      column: string;
+      tokens: string[];
+    }>;
+    header_groups?: Array<{
+      group_name: string;
+      start_col: string;
+      end_col: string;
+      bg_color?: string;
+      font_color?: string;
+    }>;
+  };
 }
 
 export interface ReportChart {
@@ -45,20 +59,30 @@ export interface ReportChart {
   data?: LineChartData | TableChartData;
   table_data?: TableObjectData;
   echarts?: {
+    [key: string]: unknown;
     xAxis?: {
       type?: string;
       data?: Array<string | number>;
+      [key: string]: unknown;
     };
     yAxis?: {
       type?: string;
       name?: string;
       min?: number | null;
       max?: number | null;
+      [key: string]: unknown;
     };
+    markArea?: Record<string, unknown>;
+    markLine?: Record<string, unknown>;
+    graphic?: unknown;
+    legend?: Record<string, unknown>;
+    tooltip?: Record<string, unknown>;
+    grid?: Record<string, unknown>;
     series?: Array<{
+      [key: string]: unknown;
       name: string;
       type: string;
-      data: Array<number | null>;
+      data: Array<number | null | [string | number, number | null] | Record<string, unknown>>;
       smooth?: boolean;
       connectNulls?: boolean;
       symbolSize?: number;
@@ -66,9 +90,11 @@ export interface ReportChart {
         color?: string;
         width?: number;
         type?: string;
+        [key: string]: unknown;
       };
       itemStyle?: {
         color?: string;
+        [key: string]: unknown;
       };
     }>;
   };

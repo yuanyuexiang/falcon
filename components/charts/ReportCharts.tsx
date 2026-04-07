@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import type { CSSProperties } from "react";
 
 import ReactECharts from "echarts-for-react";
 
@@ -15,8 +16,115 @@ import type {
 
 const CHART_COLORS = ["#00B7FF", "#33D1FF", "#2D7BFF", "#00D084", "#F5B700", "#FF4D57"];
 
+type HeaderGroup = {
+  group_name: string;
+  start_col: string;
+  end_col: string;
+  bg_color?: string;
+  font_color?: string;
+};
+
+type GroupRange = {
+  group: HeaderGroup;
+  start: number;
+  end: number;
+};
+
+const TOKEN_STYLE_MAP: Record<string, CSSProperties> = {
+  bg_light_blue: { backgroundColor: "#DDEBF7" },
+  bg_light_yellow: { backgroundColor: "#FFF2CC" },
+  bg_light_green: { backgroundColor: "#E2F0D9" },
+  bg_light_red: { backgroundColor: "#FCE4D6" },
+  font_red: { color: "#C00000" },
+  font_green: { color: "#2E7D32" },
+  font_blue: { color: "#1F4E78" },
+  font_orange: { color: "#ED7D31" },
+  font_white: { color: "#FFFFFF" },
+  bold: { fontWeight: 700 },
+  italic: { fontStyle: "italic" },
+  underline: { textDecoration: "underline" },
+  border_top_thick: { borderTop: "3px solid #1F4E78" },
+};
+
+const GROUP_BODY_BG_MAP: Record<string, string> = {
+  "pool name": "#C7D1E0",
+  "baseline metrics": "#C7D1E0",
+  "current period": "#EBDCB7",
+};
+
+const HEADER_COLOR_MAP: Record<string, string> = {
+  deep_blue: "#1F4E78",
+  blue: "#2F75B5",
+  white: "#FFFFFF",
+};
+
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function buildCellStyle(tokens: string[]): CSSProperties {
+  return tokens.reduce<CSSProperties>((acc, token) => ({
+    ...acc,
+    ...(TOKEN_STYLE_MAP[token] || {}),
+  }), {});
+}
+
+function normalizeHeaderColor(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return HEADER_COLOR_MAP[normalized] || value;
+}
+
+function normalizeGroupName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function resolveHeaderCellAlign(align?: string): "text-left" | "text-center" | "text-right" {
+  if (align === "right") {
+    return "text-right";
+  }
+  if (align === "center") {
+    return "text-center";
+  }
+  return "text-left";
+}
+
+function isFilterColumnKey(key: string): boolean {
+  return key.trim().toLowerCase().startsWith("filter");
+}
+
+function isTotalRow(row: Record<string, string | number | null>): boolean {
+  const firstValue = Object.values(row)[0];
+  if (typeof firstValue !== "string") {
+    return false;
+  }
+  return firstValue.trim().toLowerCase() === "total";
+}
+
+function buildGroupRanges(columns: Array<{ key: string; title: string; align?: string }>, groups: HeaderGroup[]): GroupRange[] {
+  return groups
+    .map((group) => {
+      const start = columns.findIndex((column) => column.key === group.start_col);
+      const end = columns.findIndex((column) => column.key === group.end_col);
+      return { group, start, end };
+    })
+    .filter((item) => item.start >= 0 && item.end >= 0 && item.end >= item.start);
+}
+
+function getColumnGroupMap(columns: Array<{ key: string; title: string; align?: string }>, groups: HeaderGroup[]): Map<string, HeaderGroup> {
+  const map = new Map<string, HeaderGroup>();
+  const ranges = buildGroupRanges(columns, groups);
+
+  ranges.forEach(({ group, start, end }) => {
+    for (let index = start; index <= end; index += 1) {
+      map.set(columns[index].key, group);
+    }
+  });
+
+  return map;
 }
 
 function toFullDateLabel(date: Date): string {
@@ -24,6 +132,17 @@ function toFullDateLabel(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function toShortYearMonthLabel(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})/);
+  if (!match) {
+    return value;
+  }
+
+  const twoDigitYear = match[1].slice(2);
+  const month = match[2];
+  return `${twoDigitYear}-${month}`;
 }
 
 function formatDateLabel(value: string | number, axisType?: string): string {
@@ -44,18 +163,18 @@ function formatDateLabel(value: string | number, axisType?: string): string {
     const date = new Date(isEpochSeconds ? value * 1000 : value);
 
     if (!Number.isNaN(date.getTime())) {
-      return toFullDateLabel(date);
+      return toShortYearMonthLabel(toFullDateLabel(date));
     }
 
     return String(value);
   }
 
   if (/^\d{4}-\d{2}$/.test(value)) {
-    return `${value}-01`;
+    return toShortYearMonthLabel(`${value}-01`);
   }
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
+    return toShortYearMonthLabel(value.slice(0, 10));
   }
 
   if (axisType === "category" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
@@ -65,7 +184,7 @@ function formatDateLabel(value: string | number, axisType?: string): string {
   const parsed = new Date(value);
 
   if (!Number.isNaN(parsed.getTime())) {
-    return toFullDateLabel(parsed);
+    return toShortYearMonthLabel(toFullDateLabel(parsed));
   }
 
   return value;
@@ -132,6 +251,7 @@ function asTableObjectData(data: unknown): TableObjectData | null {
   const candidate = data as {
     columns?: unknown;
     rows?: unknown;
+    presentation?: unknown;
   };
 
   if (!Array.isArray(candidate.columns) || !Array.isArray(candidate.rows)) {
@@ -151,14 +271,20 @@ function asTableObjectData(data: unknown): TableObjectData | null {
     return null;
   }
 
+  const presentation =
+    candidate.presentation && typeof candidate.presentation === "object" && !Array.isArray(candidate.presentation)
+      ? (candidate.presentation as TableObjectData["presentation"])
+      : undefined;
+
   return {
     columns,
     rows,
+    presentation,
   };
 }
 
 function normalizeTablePayload(chart: ReportChart): TableObjectData | TableChartData | null {
-  const objectTable = asTableObjectData(chart.table) ?? asTableObjectData(chart.table_data) ?? asTableObjectData(chart.data);
+  const objectTable = asTableObjectData(chart.table_data) ?? asTableObjectData(chart.table) ?? asTableObjectData(chart.data);
 
   if (objectTable) {
     return objectTable;
@@ -240,82 +366,155 @@ function hasTableChartData(chart: ReportChart): boolean {
   return tableData.rows.length > 0;
 }
 
-function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
-  const gridTop = showLegend ? 44 : 26;
-  const gridBottom = 32;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
 
-  if (chart.echarts) {
-    const xAxisType = chart.echarts.xAxis?.type ?? "category";
-    const axisData = chart.echarts.xAxis?.data ?? [];
-    const series = (chart.echarts.series ?? []).filter((item) => !hiddenSeriesNames?.has(item.name));
+function normalizeEchartsOption(option: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...option };
+  const rawSeries = Array.isArray(option.series) ? option.series : [];
+  const series = rawSeries.map((item) => (asRecord(item) ? { ...(item as Record<string, unknown>) } : item));
 
-    return {
-      color: CHART_COLORS,
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "rgba(5, 10, 20, 0.92)",
-        borderWidth: 1,
-        borderColor: "rgba(51, 209, 255, 0.5)",
-        textStyle: {
-          color: "#d9f3ff",
-          fontSize: 12,
-        },
-        extraCssText: "border-radius:10px;box-shadow:0 12px 30px rgba(0,183,255,0.16);",
-        valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
-      },
-      legend: {
-        type: "scroll",
-        top: 0,
-        show: showLegend,
-        textStyle: {
-          color: "#9bc5ea",
-        },
-      },
-      grid: {
-        top: gridTop,
-        left: 54,
-        right: 20,
-        bottom: gridBottom,
-      },
-      xAxis: {
-        type: xAxisType,
-        data: axisData,
-        axisLabel: {
-          color: "#9bc5ea",
-          hideOverlap: true,
-          interval: "auto",
-          formatter: (value: string | number) => formatDateLabel(value, xAxisType),
-        },
-      },
-      yAxis: {
-        type: chart.echarts.yAxis?.type ?? "value",
-        name: chart.echarts.yAxis?.name ?? "Value",
-        min: chart.echarts.yAxis?.min,
-        max: chart.echarts.yAxis?.max,
-        scale: true,
-        axisLabel: {
-          color: "#9bc5ea",
-          formatter: (value: number) => formatAxisNumber(value),
-        },
-        splitLine: {
-          lineStyle: {
-            color: "rgba(137, 179, 220, 0.18)",
-          },
-        },
-      },
-      series: series.map((item) => ({
-        ...item,
-        emphasis: {
-          focus: "series",
-          lineStyle: {
-            width: (item.lineStyle?.width ?? 2) + 2,
-            color: item.lineStyle?.color,
-          },
-        },
-      })),
-    };
+  if (!series.length) {
+    return next;
   }
 
+  const firstSeries = asRecord(series[0]);
+  if (!firstSeries) {
+    return next;
+  }
+
+  const topMarkArea = asRecord(option.markArea);
+  const topMarkLine = asRecord(option.markLine);
+
+  if (!firstSeries.markArea && topMarkArea) {
+    firstSeries.markArea = topMarkArea;
+  }
+
+  if (!firstSeries.markLine && topMarkLine) {
+    firstSeries.markLine = topMarkLine;
+  }
+
+  series[0] = firstSeries;
+  next.series = series;
+  delete next.markArea;
+  delete next.markLine;
+  return next;
+}
+
+function applySeriesVisibility(
+  option: Record<string, unknown>,
+  hiddenSeriesNames?: Set<string>,
+): Record<string, unknown> {
+  if (!hiddenSeriesNames || hiddenSeriesNames.size === 0) {
+    return option;
+  }
+
+  const rawSeries = Array.isArray(option.series) ? option.series : [];
+  const visibleSeries = rawSeries.filter((item) => {
+    const record = asRecord(item);
+    if (!record) {
+      return true;
+    }
+    const name = typeof record.name === "string" ? record.name : "";
+    return !hiddenSeriesNames.has(name);
+  });
+
+  return {
+    ...option,
+    series: visibleSeries,
+  };
+}
+
+function withFalconLineDefaults(
+  option: Record<string, unknown>,
+  showLegend: boolean,
+): Record<string, unknown> {
+  const gridTop = showLegend ? 44 : 26;
+  const gridBottom = 32;
+  const legend = asRecord(option.legend) ?? {};
+  const grid = asRecord(option.grid) ?? {};
+  const tooltip = asRecord(option.tooltip) ?? {};
+  const xAxis = asRecord(option.xAxis) ?? {};
+  const yAxis = asRecord(option.yAxis) ?? {};
+  const xAxisType = typeof xAxis.type === "string" ? xAxis.type : "category";
+
+  return {
+    ...option,
+    color: Array.isArray(option.color) ? option.color : CHART_COLORS,
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(5, 10, 20, 0.92)",
+      borderWidth: 1,
+      borderColor: "rgba(51, 209, 255, 0.5)",
+      textStyle: {
+        color: "#d9f3ff",
+        fontSize: 12,
+      },
+      extraCssText: "border-radius:10px;box-shadow:0 12px 30px rgba(0,183,255,0.16);",
+      ...tooltip,
+      valueFormatter: (value: number | string | null) => formatTooltipNumber(value),
+    },
+    legend: {
+      type: "scroll",
+      top: 0,
+      show: showLegend,
+      textStyle: {
+        color: "#9bc5ea",
+      },
+      ...legend,
+      show: showLegend,
+    },
+    grid: {
+      top: gridTop,
+      left: 54,
+      right: 20,
+      bottom: gridBottom,
+      ...grid,
+    },
+    xAxis: {
+      ...xAxis,
+      type: xAxisType,
+      axisLabel: {
+        color: "#9bc5ea",
+        hideOverlap: true,
+        interval: "auto",
+        formatter: (value: string | number) => formatDateLabel(value, xAxisType),
+        ...(asRecord(xAxis.axisLabel) ?? {}),
+      },
+    },
+    yAxis: {
+      type: "value",
+      name: "Value",
+      scale: true,
+      ...yAxis,
+      axisLabel: {
+        color: "#9bc5ea",
+        formatter: (value: number) => formatAxisNumber(value),
+        ...(asRecord(yAxis.axisLabel) ?? {}),
+      },
+      splitLine: {
+        lineStyle: {
+          color: "rgba(137, 179, 220, 0.18)",
+        },
+        ...(asRecord(yAxis.splitLine) ?? {}),
+      },
+    },
+  };
+}
+
+function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
+  if (chart.echarts) {
+    const backendOption = normalizeEchartsOption(chart.echarts as unknown as Record<string, unknown>);
+    const withVisibility = applySeriesVisibility(backendOption, hiddenSeriesNames);
+    return withFalconLineDefaults(withVisibility, showLegend);
+  }
+
+  const gridTop = showLegend ? 44 : 26;
+  const gridBottom = 32;
   const data = normalizeLineChartData(chart.data);
   const minMax = chart.config?.y_axis_range;
   const visibleDatasets = data.datasets.filter((item) => !hiddenSeriesNames?.has(item.label));
@@ -414,6 +613,26 @@ function TableChart({ chart }: { chart: ReportChart }) {
 
   if ("columns" in tablePayload) {
     const { columns, rows } = tablePayload;
+    const presentation = tablePayload.presentation;
+    const headerGroups = asArray<HeaderGroup>(presentation?.header_groups);
+    const visibleColumns = columns.filter((column) => !isFilterColumnKey(column.key));
+    const groupRanges = buildGroupRanges(visibleColumns, headerGroups);
+    const coveredColumnIndexes = new Set<number>();
+    groupRanges.forEach(({ start, end }) => {
+      for (let index = start; index <= end; index += 1) {
+        coveredColumnIndexes.add(index);
+      }
+    });
+
+    const styleMap = new Map<string, CSSProperties>();
+    asArray(presentation?.cell_styles).forEach((item) => {
+      if (!Array.isArray(item.tokens) || !item.tokens.length) {
+        return;
+      }
+      styleMap.set(`${item.row_index}:${item.column}`, buildCellStyle(item.tokens));
+    });
+
+    const groupByColumn = getColumnGroupMap(visibleColumns, headerGroups);
 
     return (
       <div className="terminal-panel rounded-xl p-4 shadow-sm">
@@ -425,37 +644,128 @@ function TableChart({ chart }: { chart: ReportChart }) {
         <div className="overflow-x-auto rounded-lg border border-cyan-500/20">
           <table className="min-w-full border-collapse text-left text-xs">
             <thead className="bg-slate-950/70">
-              <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column.key}
-                    className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold text-slate-200 ${
-                      column.align === "right" ? "text-right" : column.align === "center" ? "text-center" : "text-left"
-                    }`}
-                  >
-                    {column.title}
-                  </th>
-                ))}
-              </tr>
+              {headerGroups.length > 0 ? (
+                <>
+                  <tr>
+                    {groupRanges.map(({ group, start, end }) => {
+                      const childColumns = visibleColumns.slice(start, end + 1);
+                      const colSpan = childColumns.length;
+                      const isSingle = colSpan === 1;
+                      const groupBg = normalizeHeaderColor(group.bg_color) || "#2F75B5";
+                      const groupColor = normalizeHeaderColor(group.font_color) || "#FFFFFF";
+
+                      if (isSingle) {
+                        return (
+                          <th
+                            key={`group-single:${group.group_name}:${group.start_col}:${group.end_col}`}
+                            rowSpan={2}
+                            className="whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 text-center font-semibold"
+                            style={{ background: groupBg, color: groupColor }}
+                          >
+                            {group.group_name}
+                          </th>
+                        );
+                      }
+
+                      return (
+                        <th
+                          key={`group:${group.group_name}:${group.start_col}:${group.end_col}`}
+                          colSpan={colSpan}
+                          className="whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 text-center font-semibold"
+                          style={{ background: groupBg, color: groupColor }}
+                        >
+                          {group.group_name}
+                        </th>
+                      );
+                    })}
+
+                    {visibleColumns.map((column, index) => {
+                      if (coveredColumnIndexes.has(index)) {
+                        return null;
+                      }
+
+                      return (
+                        <th
+                          key={`ungrouped:${column.key}`}
+                          rowSpan={2}
+                          className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold text-slate-200 ${resolveHeaderCellAlign(column.align)}`}
+                        >
+                          {column.title}
+                        </th>
+                      );
+                    })}
+                  </tr>
+
+                  <tr>
+                    {visibleColumns.map((column) => {
+                      const group = groupByColumn.get(column.key);
+                      if (!group) {
+                        return null;
+                      }
+                      const range = groupRanges.find((item) => item.group === group);
+                      if (!range) {
+                        return null;
+                      }
+
+                      if (range.start === range.end) {
+                        return null;
+                      }
+
+                      const bg = normalizeHeaderColor(group.bg_color) || "#2F75B5";
+                      const color = normalizeHeaderColor(group.font_color) || "#FFFFFF";
+
+                      return (
+                        <th
+                          key={`child:${column.key}`}
+                          className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold ${resolveHeaderCellAlign(column.align)}`}
+                          style={{ background: bg, color }}
+                        >
+                          {column.title}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </>
+              ) : (
+                <tr>
+                  {visibleColumns.map((column) => (
+                    <th
+                      key={column.key}
+                      className={`whitespace-nowrap border-b border-cyan-500/20 px-3 py-2 font-semibold text-slate-200 ${resolveHeaderCellAlign(column.align)}`}
+                    >
+                      {column.title}
+                    </th>
+                  ))}
+                </tr>
+              )}
             </thead>
             <tbody>
               {rows.map((row, rowIndex) => (
                 <tr
                   key={`row-${rowIndex}`}
-                  className={`${rowIndex % 2 === 0 ? "bg-transparent" : "bg-slate-900/40"} transition hover:bg-cyan-500/8`}
+                  className={`${rowIndex % 2 === 0 ? "bg-transparent" : "bg-slate-900/40"} transition hover:bg-cyan-500/8 ${isTotalRow(row) ? "font-semibold" : ""}`}
                 >
-                  {columns.map((column) => {
+                  {visibleColumns.map((column) => {
                     const value = row[column.key];
+                    const tokenStyle = styleMap.get(`${rowIndex}:${column.key}`);
+                    const groupName = normalizeGroupName(groupByColumn.get(column.key)?.group_name || "");
+                    const fallbackGroupBg = tokenStyle?.backgroundColor ? undefined : GROUP_BODY_BG_MAP[groupName];
+
                     return (
                       <td
                         key={`cell-${rowIndex}-${column.key}`}
-                        className={`whitespace-nowrap border-b border-cyan-500/10 px-3 py-2 text-slate-200 ${
+                        className={`whitespace-nowrap border-b border-cyan-500/10 px-3 py-2 ${
                           column.align === "right"
                             ? "text-right font-medium tabular-nums"
                             : column.align === "center"
                               ? "text-center"
                               : "text-left"
                         }`}
+                        style={{
+                          ...tokenStyle,
+                          ...(fallbackGroupBg ? { backgroundColor: fallbackGroupBg } : {}),
+                          color: tokenStyle?.color ?? "#E2E8F0",
+                        }}
                       >
                         {value === null ? "-" : String(value)}
                       </td>
@@ -471,15 +781,22 @@ function TableChart({ chart }: { chart: ReportChart }) {
   }
 
   const table = tablePayload;
-  const columnMeta = table.headers.map((header, index) => {
+  const visibleIndexes = table.headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ header }) => !isFilterColumnKey(header))
+    .map(({ index }) => index);
+
+  const columnMeta = visibleIndexes.map((index) => {
+    const header = table.headers[index];
     const isNumeric = table.rows.some((row) => typeof row[index] === "number");
     const isDate = /date/i.test(header);
     return { header, isNumeric, isDate };
   });
 
   const formattedRows = table.rows.map((row) => {
-    return row.map((cell, index) => {
-      const meta = columnMeta[index];
+    return visibleIndexes.map((index, visibleColIndex) => {
+      const cell = row[index];
+      const meta = columnMeta[visibleColIndex];
 
       if (typeof cell === "number") {
         if (Math.abs(cell) >= 1_000_000_000) {

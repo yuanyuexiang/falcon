@@ -632,7 +632,7 @@ export default function DashboardPage() {
                       <p className="mt-0 truncate text-xs text-slate-300">{getSectionDisplayTitle(displaySection)}</p>
                     </div>
 
-                    <div className="terminal-panel rounded-lg px-2 py-1.5">
+                    <div className="terminal-panel w-full rounded-lg px-2 py-1.5 lg:ml-auto lg:w-1/2">
                       <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
                         <label className="flex items-center gap-1 text-xs">
                           <span className="whitespace-nowrap text-slate-400">Filter 1</span>

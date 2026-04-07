@@ -134,15 +134,15 @@ function toFullDateLabel(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function toShortYearMonthLabel(value: string): string {
+function toYearMonthLabel(value: string): string {
   const match = value.match(/^(\d{4})-(\d{2})/);
   if (!match) {
     return value;
   }
 
-  const twoDigitYear = match[1].slice(2);
+  const year = match[1];
   const month = match[2];
-  return `${twoDigitYear}-${month}`;
+  return `${year}-${month}`;
 }
 
 function formatDateLabel(value: string | number, axisType?: string): string {
@@ -163,18 +163,18 @@ function formatDateLabel(value: string | number, axisType?: string): string {
     const date = new Date(isEpochSeconds ? value * 1000 : value);
 
     if (!Number.isNaN(date.getTime())) {
-      return toShortYearMonthLabel(toFullDateLabel(date));
+      return toYearMonthLabel(toFullDateLabel(date));
     }
 
     return String(value);
   }
 
   if (/^\d{4}-\d{2}$/.test(value)) {
-    return toShortYearMonthLabel(`${value}-01`);
+    return toYearMonthLabel(`${value}-01`);
   }
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return toShortYearMonthLabel(value.slice(0, 10));
+    return toYearMonthLabel(value.slice(0, 10));
   }
 
   if (axisType === "category" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
@@ -184,7 +184,7 @@ function formatDateLabel(value: string | number, axisType?: string): string {
   const parsed = new Date(value);
 
   if (!Number.isNaN(parsed.getTime())) {
-    return toShortYearMonthLabel(toFullDateLabel(parsed));
+    return toYearMonthLabel(toFullDateLabel(parsed));
   }
 
   return value;
@@ -405,6 +405,78 @@ function normalizeEchartsOption(option: Record<string, unknown>): Record<string,
   return next;
 }
 
+function looksLikeAverageLabel(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+  return /avg|average/i.test(value);
+}
+
+function repositionMarkLineLabels(option: Record<string, unknown>): Record<string, unknown> {
+  const rawSeries = Array.isArray(option.series) ? option.series : [];
+  const series = rawSeries.map((item) => {
+    const record = asRecord(item);
+    if (!record) {
+      return item;
+    }
+
+    const markLine = asRecord(record.markLine);
+    if (!markLine || !Array.isArray(markLine.data)) {
+      return record;
+    }
+
+    const nextData = markLine.data.map((lineItem) => {
+      const lineRecord = asRecord(lineItem);
+      if (!lineRecord) {
+        return lineItem;
+      }
+
+      const label = asRecord(lineRecord.label) ?? {};
+      const hasYAxisReference = typeof lineRecord.yAxis === "number";
+      const hasXAxisReference = typeof lineRecord.xAxis === "number" || typeof lineRecord.xAxis === "string";
+      const isAverage = looksLikeAverageLabel(lineRecord.name) || looksLikeAverageLabel(label.formatter);
+
+      if (!hasYAxisReference && !hasXAxisReference && !isAverage) {
+        return lineRecord;
+      }
+
+      if (hasXAxisReference) {
+        return {
+          ...lineRecord,
+          label: {
+            ...label,
+            show: label.show ?? true,
+            color: "#9bc5ea",
+          },
+        };
+      }
+
+      return {
+        ...lineRecord,
+        label: {
+          ...label,
+          show: label.show ?? true,
+          position: "insideEndBottom",
+          offset: [0, 12],
+        },
+      };
+    });
+
+    return {
+      ...record,
+      markLine: {
+        ...markLine,
+        data: nextData,
+      },
+    };
+  });
+
+  return {
+    ...option,
+    series,
+  };
+}
+
 function applySeriesVisibility(
   option: Record<string, unknown>,
   hiddenSeriesNames?: Set<string>,
@@ -542,7 +614,8 @@ function withFalconLineDefaults(
 function buildLineOption(chart: ReportChart, showLegend: boolean = true, hiddenSeriesNames?: Set<string>) {
   if (chart.echarts) {
     const backendOption = normalizeEchartsOption(chart.echarts as unknown as Record<string, unknown>);
-    const withVisibility = applySeriesVisibility(backendOption, hiddenSeriesNames);
+    const withLineLabelAdjusted = repositionMarkLineLabels(backendOption);
+    const withVisibility = applySeriesVisibility(withLineLabelAdjusted, hiddenSeriesNames);
     return withFalconLineDefaults(withVisibility, showLegend);
   }
 

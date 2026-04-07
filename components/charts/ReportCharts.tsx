@@ -31,10 +31,10 @@ type GroupRange = {
 };
 
 const TOKEN_STYLE_MAP: Record<string, CSSProperties> = {
-  bg_light_blue: { backgroundColor: "#DDEBF7" },
-  bg_light_yellow: { backgroundColor: "#FFF2CC" },
-  bg_light_green: { backgroundColor: "#E2F0D9" },
-  bg_light_red: { backgroundColor: "#FCE4D6" },
+  bg_light_blue: { backgroundColor: "rgba(31, 58, 92, 0.55)" },
+  bg_light_yellow: { backgroundColor: "rgba(98, 79, 30, 0.45)" },
+  bg_light_green: { backgroundColor: "rgba(25, 82, 62, 0.45)" },
+  bg_light_red: { backgroundColor: "rgba(98, 38, 38, 0.45)" },
   font_red: { color: "#C00000" },
   font_green: { color: "#2E7D32" },
   font_blue: { color: "#1F4E78" },
@@ -47,9 +47,9 @@ const TOKEN_STYLE_MAP: Record<string, CSSProperties> = {
 };
 
 const GROUP_BODY_BG_MAP: Record<string, string> = {
-  "pool name": "#C7D1E0",
-  "baseline metrics": "#C7D1E0",
-  "current period": "#EBDCB7",
+  "pool name": "rgba(27, 44, 66, 0.56)",
+  "baseline metrics": "rgba(30, 50, 74, 0.56)",
+  "current period": "rgba(72, 58, 30, 0.5)",
 };
 
 const HEADER_COLOR_MAP: Record<string, string> = {

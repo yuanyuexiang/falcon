@@ -129,15 +129,15 @@ export default function ReportsPage() {
         )}
 
         {!isLoading && !error && groupedReports.length > 0 && (
-          <section className="space-y-4">
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {groupedReports.map(({ type, items }) => (
-              <div key={type} className="terminal-shell rounded-2xl p-3 sm:p-4">
+              <div key={type} className="terminal-shell h-full rounded-2xl p-3 sm:p-4">
                 <div className="mb-2 flex items-center justify-between gap-3 border-b border-cyan-500/20 pb-1.5">
                   <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">{type}</h2>
                   <span className="text-xs text-slate-400">{items.length} report{items.length > 1 ? "s" : ""}</span>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                   {items.map((report) => {
                     const cardKey = `${report.report_key}-${report.id}`;
 
@@ -162,9 +162,8 @@ export default function ReportsPage() {
 
                         <h3 className="mt-2.5 line-clamp-2 text-base font-semibold text-cyan-100">{report.name}</h3>
 
-                        <div className="mt-2 space-y-0.5 text-xs text-slate-300">
-                          <p>Report Key: {report.report_key}</p>
-                          <p>Type: {report.type}</p>
+                        <div className="mt-2 text-xs text-slate-300">
+                          <p>{formatUpdatedAt(report.updated_at)}</p>
                         </div>
 
                         <div className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-cyan-300 transition group-hover:gap-2">
@@ -182,4 +181,17 @@ export default function ReportsPage() {
       </div>
     </main>
   );
+}
+
+function formatUpdatedAt(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "Updated: --";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return `Updated: ${value}`;
+  }
+
+  return `Updated: ${date.toLocaleString("zh-CN", { hour12: false })}`;
 }

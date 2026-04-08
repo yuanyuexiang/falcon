@@ -16,6 +16,11 @@ interface SectionFilterOptions {
   filter2ByFilter1: Record<string, string[]>;
 }
 
+interface SectionFilterLabels {
+  filter1Label: string;
+  filter2Label: string;
+}
+
 interface SharedLegendItem {
   label: string;
   color: string;
@@ -151,6 +156,36 @@ function extractSectionFilterOptions(section: ReportSection | null): SectionFilt
     filter1Values,
     filter2ByFilter1,
   };
+}
+
+function extractSectionFilterLabels(section: ReportSection | null): SectionFilterLabels {
+  if (!section) {
+    return { filter1Label: "Filter 1", filter2Label: "Filter 2" };
+  }
+
+  for (const chart of asArray<ReportChart>(section.content_items?.charts)) {
+    const chartMeta = chart.meta as Record<string, unknown> | undefined;
+    if (!chartMeta || typeof chartMeta !== "object") {
+      continue;
+    }
+
+    const labels = chartMeta.filter_labels;
+    if (!labels || typeof labels !== "object" || Array.isArray(labels)) {
+      continue;
+    }
+
+    const filter1 = toFilterValue((labels as Record<string, unknown>).filter1);
+    const filter2 = toFilterValue((labels as Record<string, unknown>).filter2);
+
+    if (filter1 || filter2) {
+      return {
+        filter1Label: filter1 || "Filter 1",
+        filter2Label: filter2 || "Filter 2",
+      };
+    }
+  }
+
+  return { filter1Label: "Filter 1", filter2Label: "Filter 2" };
 }
 
 function normalizeChapters(report: ReportDocument | null): ReportChapter[] {
@@ -377,6 +412,10 @@ export default function DashboardPage() {
 
   const sectionFilterOptions = useMemo(
     () => extractSectionFilterOptions(activeSection),
+    [activeSection],
+  );
+  const sectionFilterLabels = useMemo(
+    () => extractSectionFilterLabels(activeSection),
     [activeSection],
   );
 
@@ -635,7 +674,7 @@ export default function DashboardPage() {
                     <div className="terminal-panel w-full rounded-lg px-2 py-1.5 lg:ml-auto lg:w-full">
                       <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
                         <label className="flex items-center gap-1 text-xs">
-                          <span className="whitespace-nowrap text-slate-400">Filter 1</span>
+                          <span className="whitespace-nowrap text-slate-400">{sectionFilterLabels.filter1Label}</span>
                           <select
                             value={selectedFilter1}
                             onChange={(event) => {
@@ -655,7 +694,7 @@ export default function DashboardPage() {
                         </label>
 
                         <label className="flex items-center gap-1 text-xs">
-                          <span className="whitespace-nowrap text-slate-400">Filter 2</span>
+                          <span className="whitespace-nowrap text-slate-400">{sectionFilterLabels.filter2Label}</span>
                           <select
                             value={selectedFilter2}
                             onChange={(event) => {

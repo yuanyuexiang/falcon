@@ -560,7 +560,6 @@ function withFalconLineDefaults(
     legend: {
       type: "scroll",
       top: 0,
-      show: showLegend,
       textStyle: {
         color: "#9bc5ea",
       },
@@ -732,11 +731,23 @@ function TableChart({ chart }: { chart: ReportChart }) {
     });
 
     const styleMap = new Map<string, CSSProperties>();
-    asArray(presentation?.cell_styles).forEach((item) => {
-      if (!Array.isArray(item.tokens) || !item.tokens.length) {
+    asArray<unknown>(presentation?.cell_styles).forEach((item) => {
+      const rule = asRecord(item);
+      if (!rule) {
         return;
       }
-      styleMap.set(`${item.row_index}:${item.column}`, buildCellStyle(item.tokens));
+
+      const tokens = Array.isArray(rule.tokens)
+        ? rule.tokens.filter((token): token is string => typeof token === "string")
+        : [];
+      const rowIndex = rule.row_index;
+      const column = rule.column;
+
+      if (!tokens.length || typeof rowIndex !== "number" || typeof column !== "string") {
+        return;
+      }
+
+      styleMap.set(`${rowIndex}:${column}`, buildCellStyle(tokens));
     });
 
     const groupByColumn = getColumnGroupMap(visibleColumns, headerGroups);
